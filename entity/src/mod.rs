@@ -3,3 +3,4 @@
 pub mod prelude;
 
 pub mod message;
+pub mod user;

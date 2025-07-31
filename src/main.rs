@@ -37,6 +37,7 @@ async fn main() {
     .route("/about", get(routes::pages::about))
     .route("/ws", any(routes::socket::ws_handler))
     .route("/message", get(routes::services::get_messages).post(routes::services::create_message))
+    .route("/user", get(routes::services::get_users).post(routes::services::create_user))
     .with_state(state);
 
     // run it
