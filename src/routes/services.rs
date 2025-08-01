@@ -58,18 +58,12 @@ pub async fn create_user(state: State<WamServerState>, Json(user): Json<entity::
     }
 }
 
-pub async fn get_messages(state: State<WamServerState>) -> Json<String> {
-    let messages = state.db.get_messages().await;
-    Json(messages
-        .map(|msgs| serde_json::to_string(&msgs).unwrap_or_else(|_| "[]".to_string()))
-        .unwrap_or_else(|_| "[]".to_string())
-    )
+pub async fn get_messages(state: State<WamServerState>) -> Json<Vec<entity::message::Model>> {
+    let messages = state.db.get_messages().await.unwrap();
+    Json(messages)
 }
 
-pub async fn get_users(state: State<WamServerState>) -> Json<String> {
-    let messages = state.db.get_users().await;
-    Json(messages
-        .map(|msgs| serde_json::to_string(&msgs).unwrap_or_else(|_| "[]".to_string()))
-        .unwrap_or_else(|_| "[]".to_string())
-    )
+pub async fn get_users(state: State<WamServerState>) -> Json<Vec<entity::user::Model>> {
+    let users = state.db.get_users().await.unwrap_or_else(|_| vec![]);
+    Json(users)
 }
