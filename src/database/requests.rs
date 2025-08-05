@@ -31,6 +31,12 @@ impl WamDatabase {
             .await
     }
 
+    pub async fn get_messages_count(&self) -> Result<u64, DbErr> {
+        message::Entity::find()
+            .count(&self.conn)
+            .await
+    }
+
     pub async fn get_users(&self) -> Result<Vec<user::Model>, DbErr> {
         user::Entity::find()
             .all(&self.conn)

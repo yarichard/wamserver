@@ -12,6 +12,11 @@ pub struct ApiResponse {
     message: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MessageInfo{
+    nb: u64
+}
+
 // POST 
 #[debug_handler]
 pub async fn create_message(state: State<WamServerState>, Json(message): Json<entity::message::Model>) -> Result<StatusCode, StatusCode>{
@@ -61,6 +66,12 @@ pub async fn create_user(state: State<WamServerState>, Json(user): Json<entity::
 pub async fn get_messages(state: State<WamServerState>) -> Json<Vec<entity::message::Model>> {
     let messages = state.db.get_messages().await.unwrap();
     Json(messages)
+}
+
+pub async fn get_messages_count(state: State<WamServerState>) -> Json<MessageInfo> {
+    let nb = state.db.get_messages_count().await.unwrap();
+    let info: MessageInfo = MessageInfo { nb: nb };
+    Json(info)
 }
 
 pub async fn get_users(state: State<WamServerState>) -> Json<Vec<entity::user::Model>> {
