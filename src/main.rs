@@ -1,4 +1,5 @@
 use std::env;
+use tower_http::services::ServeDir;
 
 use axum::{
     routing::get, 
@@ -34,6 +35,9 @@ async fn main() {
         db: db.clone(),
     };
 
+    // Serve static files from "web/public"
+    let static_files = ServeDir::new("web/public");
+
     // build our application with a route
     let app = Router::new()
     .route("/", get(routes::pages::handler))
@@ -42,6 +46,8 @@ async fn main() {
     .route("/message", get(routes::services::get_messages).post(routes::services::create_message))
     .route("/info", get(routes::services::get_messages_count))
     .route("/user", get(routes::services::get_users).post(routes::services::create_user))
+    .route("/src/index.js", get(routes::pages::index_js))
+    .nest_service("/static", static_files)
     .with_state(state);
 
     // Launch Kafka consumer loop
