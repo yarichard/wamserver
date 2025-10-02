@@ -5,7 +5,7 @@ use axum::{
     routing::any,
     Router
 };
-use log::{LevelFilter, info};
+use log::{LevelFilter, info, error};
 use env_logger::Builder;
 
 use crate::database::WamDatabase;
@@ -50,7 +50,7 @@ async fn main() {
     });
 
     // run it
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await
         .unwrap();
     println!("listening on {}", listener.local_addr().unwrap());
@@ -67,32 +67,38 @@ async fn consume_kafka_message(db: WamDatabase){
         let topic: String = env::var("KAFKA_TOPIC").expect("KAFKA_TOPIC must be set");
         let group: String = env::var("KAFKA_GROUP").expect("KAFKA_GROUP must be set");
                 
-        let mut consumer =
+        let consumer_res=
         Consumer::from_hosts(vec!(host.to_owned()))
             .with_topic(topic.to_owned())
             .with_fallback_offset(FetchOffset::Earliest)
             .with_group(group)
             .with_offset_storage(Some(kafka::consumer::GroupOffsetStorage::Kafka))
-            .create()
-            .unwrap();
+            .create();
 
-        for ms in consumer.poll().unwrap().iter() {
-            for m in ms.messages() {
-            let str = String::from_utf8_lossy(m.value);
-            println!("Consuming message from Kafka \"topic\" {} : {:?}",topic, str);
+        let _ = match consumer_res {
+            Ok(mut c) => {
+                for ms in c.poll().unwrap().iter() {
+                    for m in ms.messages() {
+                    let str = String::from_utf8_lossy(m.value);
+                    println!("Consuming message from Kafka \"topic\" {} : {:?}",topic, str);
 
-            // Create message from string 
-            let message = serde_json::from_str::<entity::message::Model>(&str)
-                .map_err(|e| {
-                    println!("Error parsing message: {}", e);
-                });
+                    // Create message from string 
+                    let message = serde_json::from_str::<entity::message::Model>(&str)
+                        .map_err(|e| {
+                            println!("Error parsing message: {}", e);
+                        });
 
-                // Save message to database
-                let _ = db.create_message(message.unwrap()).await;
+                        // Save message to database
+                        let _ = db.create_message(message.unwrap()).await;
+                    }
+                    let _ = c.consume_messageset(ms);
+                }
+                c.commit_consumed().unwrap();
+            },
+            Err(e) => {
+                error!("Error creating Kafka consumer: {}", e);
             }
-            let _ = consumer.consume_messageset(ms);
-        }
-        consumer.commit_consumed().unwrap();
+        };
 
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
     }
