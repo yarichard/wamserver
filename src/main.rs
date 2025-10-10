@@ -1,22 +1,27 @@
-use std::env;
 
 use axum::{
-    routing::get, 
+    routing::get,
     routing::any,
-    Router
+    Router,
 };
-use log::{LevelFilter, info, error};
+use tower_http::services::ServeDir;
+use log::{LevelFilter};
 use env_logger::Builder;
+use std::sync::{Arc, Mutex};
+use tokio::sync::broadcast;
 
 use crate::database::WamDatabase;
-use kafka::consumer::{Consumer, FetchOffset};
+use crate::messaging::websocket::WsConnection;
 
 pub mod routes;
 pub mod database;
+pub mod messaging;
 
 #[derive(Clone)]
 pub struct WamServerState {
     pub db: WamDatabase,
+    pub ws_connections: Arc<Mutex<Vec<WsConnection>>>,
+    pub ws_sender: broadcast::Sender<axum::extract::ws::Message>,
 }
 
 #[tokio::main]
@@ -30,24 +35,39 @@ async fn main() {
 
     // Open database
     let db = database::WamDatabase::open().await;
+    
+    // Create broadcast channel for WebSocket messages
+    let (ws_sender, _) = broadcast::channel(100);
+    
     let state = WamServerState {
         db: db.clone(),
+        ws_connections: Arc::new(Mutex::new(Vec::new())),
+        ws_sender: ws_sender,
     };
 
     // build our application with a route
+    let api_router = Router::new()
+        .route("/about", get(routes::pages::about))
+        .route("/ws", any(routes::socket::ws_handler))
+        .route("/message", get(routes::services::get_messages).post(routes::services::create_message))
+        .route("/info", get(routes::services::get_messages_count))
+        .route("/user", get(routes::services::get_users).post(routes::services::create_user))
+        .route("/parameters", get(routes::parameters::get_kafka_parameters))
+        .with_state(state.clone());
+
+    // Create static file service with proper MIME types
+    let static_service = ServeDir::new("static")
+        .append_index_html_on_directories(true);
+
     let app = Router::new()
-    .route("/", get(routes::pages::handler))
-    .route("/about", get(routes::pages::about))
-    .route("/ws", any(routes::socket::ws_handler))
-    .route("/message", get(routes::services::get_messages).post(routes::services::create_message))
-    .route("/info", get(routes::services::get_messages_count))
-    .route("/user", get(routes::services::get_users).post(routes::services::create_user))
-    .with_state(state);
+        .merge(api_router)
+        // Serve the static files directly from root, not from /static
+        .fallback_service(static_service);
 
     // Launch Kafka consumer loop
-    let _ = tokio::spawn(async {
-        consume_kafka_message(db).await;
-    });
+    /*let _ = tokio::spawn(async move {
+        messaging::kafka::consume_kafka_message(state).await;
+    });*/
 
     // run it
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
@@ -55,51 +75,4 @@ async fn main() {
         .unwrap();
     println!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
-}
-
-async fn consume_kafka_message(db: WamDatabase){
-
-    loop {
-        info!("Executing Kafka consuming loop");
-    
-        // Create Kafka consumer
-        let host = env::var("KAFKA_URL").expect("KAFKA_URL must be set");
-        let topic: String = env::var("KAFKA_TOPIC").expect("KAFKA_TOPIC must be set");
-        let group: String = env::var("KAFKA_GROUP").expect("KAFKA_GROUP must be set");
-                
-        let consumer_res=
-        Consumer::from_hosts(vec!(host.to_owned()))
-            .with_topic(topic.to_owned())
-            .with_fallback_offset(FetchOffset::Earliest)
-            .with_group(group)
-            .with_offset_storage(Some(kafka::consumer::GroupOffsetStorage::Kafka))
-            .create();
-
-        let _ = match consumer_res {
-            Ok(mut c) => {
-                for ms in c.poll().unwrap().iter() {
-                    for m in ms.messages() {
-                    let str = String::from_utf8_lossy(m.value);
-                    println!("Consuming message from Kafka \"topic\" {} : {:?}",topic, str);
-
-                    // Create message from string 
-                    let message = serde_json::from_str::<entity::message::Model>(&str)
-                        .map_err(|e| {
-                            println!("Error parsing message: {}", e);
-                        });
-
-                        // Save message to database
-                        let _ = db.create_message(message.unwrap()).await;
-                    }
-                    let _ = c.consume_messageset(ms);
-                }
-                c.commit_consumed().unwrap();
-            },
-            Err(e) => {
-                error!("Error creating Kafka consumer: {}", e);
-            }
-        };
-
-        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-    }
 }

@@ -5,9 +5,9 @@ use ::entity::user as user;
 use crate::database::WamDatabase;
 
 impl WamDatabase {
-    pub async fn create_message(&self, msg: message::Model)-> Result<message::ActiveModel, DbErr> {
+    pub async fn create_message(&self, msg: &message::Model)-> Result<message::ActiveModel, DbErr> {
         message::ActiveModel{
-                    text: Set(msg.text),
+                    text: Set(msg.text.clone()),
                     user_id: Set(msg.user_id),
                     ..Default::default()
         }

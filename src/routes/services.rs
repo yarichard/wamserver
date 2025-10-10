@@ -2,7 +2,8 @@ use axum::http::StatusCode;
 use axum::{Json};
 use axum_macros::debug_handler;
 use axum::extract::State;
-use crate::WamServerState;
+use crate::messaging::websocket::{broadcast_message};
+use crate::{WamServerState};
 use log::{info, error};
 use serde::{Deserialize, Serialize};
 
@@ -20,29 +21,37 @@ pub struct MessageInfo{
 // POST 
 #[debug_handler]
 pub async fn create_message(state: State<WamServerState>, Json(message): Json<entity::message::Model>) -> Result<StatusCode, StatusCode>{
-    let mut result = "Message created successfully".to_string();
 
     // First check that user exists
     let user = state.db.get_user(message.user_id).await;
     if user.is_err() {
-        result = format!("User with id {} not found", message.user_id);
+        let result = format!("User with id {} not found", message.user_id);
         error!("{result}");
         return Err(StatusCode::NOT_FOUND);
     }
 
-    let res = state.db.create_message(message).await;
+    // Store message in DB
+    let res = state.db.create_message(&message).await;
     
     match res {
         Ok(_) => {
-            info!("{result}");
+            info!("Message successfully stored in database");
+
+            // Broadcast message to WebSocket clients
+            broadcast_message(&state.ws_sender, "message".to_string(), message)
+            .unwrap_or_else(|e| {
+                error!("Error broadcasting message to WebSocket clients: {}", e);
+            });
+
             Ok(StatusCode::OK)
         }
         Err(e) => {
-            result = format!("Error creating message: {}", e);
+            let result = format!("Error creating message: {}", e);
             error!("{result}");
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
+
 }
 
 #[debug_handler]
