@@ -26,10 +26,10 @@ function Navigation() {
         <Button
           color="inherit"
           component={Link}
-          to="/users"
+          to="/front/users"
           sx={{ 
             textDecoration: 'none',
-            backgroundColor: location.pathname === '/users' ? 'rgba(255, 255, 255, 0.1)' : 'transparent'
+            backgroundColor: location.pathname === '/front/users' ? 'rgba(255, 255, 255, 0.1)' : 'transparent'
           }}
         >
           Users
@@ -37,10 +37,10 @@ function Navigation() {
         <Button
           color="inherit"
           component={Link}
-          to="/messages"
+          to="/front/messages"
           sx={{ 
             textDecoration: 'none',
-            backgroundColor: location.pathname === '/messages' ? 'rgba(255, 255, 255, 0.1)' : 'transparent'
+            backgroundColor: location.pathname === '/front/messages' ? 'rgba(255, 255, 255, 0.1)' : 'transparent'
           }}
         >
           Messages
@@ -61,9 +61,9 @@ function App() {
     const fetchData = async () => {
       try {
         const [usersResponse, messagesResponse, paramsResponse] = await Promise.all([
-          axios.get('/user'),
-          axios.get('/message'),
-          axios.get('/parameters')
+          axios.get('/api/user'),
+          axios.get('/api/message'),
+          axios.get('/api/parameters')
         ]);
         setUsers(usersResponse.data);
         setMessages(messagesResponse.data);
@@ -100,8 +100,8 @@ function App() {
               )}
 
               <Routes>
-                <Route path="/users" element={<Users users={users} />} />
-                <Route path="/messages" element={<Messages messages={messages} />} />
+                <Route path="/front/users" element={<Users users={users} />} />
+                <Route path="/front/messages" element={<Messages messages={messages} />} />
               </Routes>
             </Box>
           </Container>

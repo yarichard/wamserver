@@ -14,27 +14,49 @@ COPY migration/src migration/src
 # Build the entire workspace in release mode
 RUN cargo build --release --workspace
 
+# Build the front end
+FROM node:20 AS frontend-builder
+WORKDIR /app
+COPY frontend/package*.json frontend/
+WORKDIR /app/frontend
+RUN npm install
+COPY frontend/ ./
+RUN npm run build -- --mode production && ls -la ../static
+
 # Use a minimal base image for the final image
 FROM debian:bookworm-slim
 WORKDIR /app
 
-# Install OpenSSL runtime library
-RUN apt-get update && apt-get install -y --no-install-recommends libssl3 && rm -rf /var/lib/apt/lists/*
+# Install OpenSSL runtime library and curl for healthcheck
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy the compiled binary from the builder stage
+# Copy the compiled binary and set up the environment
 COPY --from=builder /app/target/release/wamserver /usr/local/bin/wamserver
 
-# Create an empty folder data for SQLite database
+# Create necessary directories
 RUN mkdir data
 
-# Expose the application port
-EXPOSE 3000
+# Copy the built frontend files
+COPY --from=frontend-builder /app/static /app/static
 
-# Set environment variables (override at runtime as needed)
+# Expose the application port (different from the dev one to avoid port forwarding collision)
+EXPOSE 8080
+
+# Environment configuration
 ENV DATABASE_URL=sqlite://data/db.sqlite?mode=rwc \
     KAFKA_URL=kafka:9092 \
     KAFKA_TOPIC=messages \
-    KAFKA_GROUP=wam
+    KAFKA_GROUP=wam \
+    RUST_LOG=info \
+    RUST_BACKTRACE=1
 
-# Set the entrypoint
+# Set the command (using shell form to see output)
 ENTRYPOINT ["/usr/local/bin/wamserver"]
+
+# Use LABEL for metadata
+LABEL maintainer="Yann Richard" \
+      version="1.0" \
+      description="WAM Server application"

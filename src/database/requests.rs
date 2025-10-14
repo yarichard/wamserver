@@ -5,23 +5,23 @@ use ::entity::user as user;
 use crate::database::WamDatabase;
 
 impl WamDatabase {
-    pub async fn create_message(&self, msg: &message::Model)-> Result<message::ActiveModel, DbErr> {
+    pub async fn create_message(&self, msg: &message::Model)-> Result<message::Model, DbErr> {
         message::ActiveModel{
                     text: Set(msg.text.clone()),
                     user_id: Set(msg.user_id),
                     ..Default::default()
         }
-        .save(&self.conn)
+        .insert(&self.conn)
         .await
     }
 
-    pub async fn create_user(&self, user: user::Model)-> Result<user::ActiveModel, DbErr> {
+    pub async fn create_user(&self, user: user::Model)-> Result<user::Model, DbErr> {
         user::ActiveModel{
                     name: Set(user.name),
                     email: Set(user.email),
                     ..Default::default()
         }
-        .save(&self.conn)
+        .insert(&self.conn)
         .await
     }
 

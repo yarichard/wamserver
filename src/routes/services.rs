@@ -34,14 +34,14 @@ pub async fn create_message(state: State<WamServerState>, Json(message): Json<en
     let res = state.db.create_message(&message).await;
     
     match res {
-        Ok(_) => {
+        Ok(ser_msg) => {
             info!("Message successfully stored in database");
 
             // Broadcast message to WebSocket clients
-            broadcast_message(&state.ws_sender, "message".to_string(), message)
-            .unwrap_or_else(|e| {
-                error!("Error broadcasting message to WebSocket clients: {}", e);
-            });
+            broadcast_message(&state.ws_sender, "message".to_string(), ser_msg)
+                .unwrap_or_else(|e| {
+                    error!("Error broadcasting message to WebSocket clients: {}", e);
+                });
 
             Ok(StatusCode::OK)
         }

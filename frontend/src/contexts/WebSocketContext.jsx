@@ -8,7 +8,7 @@ export function WebSocketProvider({ children }) {
 
   useEffect(() => {
     // Create WebSocket connection
-    const ws = new WebSocket(`ws://${window.location.host}/ws`);
+    const ws = new WebSocket(`ws://${window.location.host}/api/ws`);
 
     ws.onopen = () => {
       console.log('WebSocket Connected');
@@ -18,7 +18,16 @@ export function WebSocketProvider({ children }) {
       try {
         const data = JSON.parse(event.data);
         if (data.msg_type === 'message') {
-          setMessages(prev => [data.message, ...prev]);
+          setMessages(prev => {
+            const newMessage = data.message;
+            // Check if message with this ID already exists
+            const exists = prev.some(msg => msg.id === newMessage.id);
+            if (exists) {
+              return prev; // Don't add duplicate message
+            }
+            // Add new message at the beginning
+            return [newMessage, ...prev];
+          });
         }
       } catch (e) {
         console.error('Error parsing WebSocket message:', e);
