@@ -2,7 +2,7 @@ use kafka::consumer::{Consumer, FetchOffset};
 use std::env;
 use log::{info, error};
 
-use crate::WamServerState;
+use crate::{messaging::websocket::broadcast_message, WamServerState};
 
 pub async fn consume_kafka_message(state: WamServerState) {
 
@@ -38,12 +38,19 @@ pub async fn consume_kafka_message(state: WamServerState) {
                         if message.is_ok(){
                             let ok_msg = message.as_ref().unwrap();
                             // Save message to database
-                            let _ = state.db.create_message(ok_msg).await;
+                            let res = state.db.create_message(ok_msg).await;
+                            
+                            if res.is_err() {
+                                error!("Error saving message to database: {:?}", res.err());
+                                continue;
+                            }
 
                             // Push message to web socket clients
-                            if let Err(e) = state.ws_sender.send(axum::extract::ws::Message::Text(str.to_string().into())) {
-                                error!("Error broadcasting message to WebSocket clients: {}", e);
-                            }
+                            broadcast_message(&state.ws_sender, "message".to_string(), res.unwrap())
+                                .unwrap_or_else(|e| {
+                                    error!("Error broadcasting message to WebSocket clients: {}", e);
+                                });
+
                         } else {
                             error!("Error parsing message from Kafka: {:?}", message.err());
                             continue;
