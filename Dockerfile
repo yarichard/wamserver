@@ -16,11 +16,21 @@ RUN cargo build --release --workspace
 
 # Build the front end
 FROM node:20 AS frontend-builder
+
+# Accept NPM_TOKEN as a build argument
+ARG NPM_TOKEN
+
 WORKDIR /app
 COPY frontend/package*.json frontend/
+COPY frontend/.npmrc frontend/
 WORKDIR /app/frontend
+
+# Configure npm authentication using the build argument
+RUN echo "//npm.pkg.github.com/:_authToken=${NPM_TOKEN}" >> .npmrc
+
 RUN npm install
 COPY frontend/ ./
+
 RUN npm run build -- --mode production && ls -la ../static
 
 # Use a minimal base image for the final image
