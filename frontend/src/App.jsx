@@ -9,10 +9,12 @@ import {
   Box,
   Button,
   Paper,
+  Grid,
 } from '@mui/material';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import Users from './components/Users';
 import Messages from './components/Messages';
+import Gatling from './components/Gatling';
 
 function Navigation() {
   const location = useLocation();
@@ -86,23 +88,40 @@ function App() {
       <WebSocketProvider>
         <Box sx={{ flexGrow: 1 }}>
           <Navigation />
-        <Container maxWidth="md">
+        <Container maxWidth="lg">
             <Box sx={{ mt: 4 }}>
-              {kafkaParams && (
-                <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
-                  <Typography variant="h5" gutterBottom>
-                    Kafka Configuration
-                  </Typography>
-                  <Typography><strong>URL:</strong> {kafkaParams.kafka_url}</Typography>
-                  <Typography><strong>Topic:</strong> {kafkaParams.kafka_topic}</Typography>
-                  <Typography><strong>Group:</strong> {kafkaParams.kafka_group}</Typography>
-                </Paper>
-              )}
+              <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
+                <Grid item xs={12} md={6} sx={{ display: 'flex' }}>
+                  {kafkaParams ? (
+                    <Paper elevation={2} sx={{ p: 3, flex: 1 }}>
+                      <Typography variant="h5" gutterBottom>
+                        Kafka Configuration
+                      </Typography>
+                      <Typography><strong>URL:</strong> {kafkaParams.kafka_url}</Typography>
+                      <Typography><strong>Topic:</strong> {kafkaParams.kafka_topic}</Typography>
+                      <Typography><strong>Group:</strong> {kafkaParams.kafka_group}</Typography>
+                    </Paper>
+                  ) : (
+                    <Paper elevation={2} sx={{ p: 3, flex: 1 }}>
+                      <Typography variant="h5" gutterBottom>
+                        Kafka Configuration
+                      </Typography>
+                      <Typography color="text.secondary">Loading configuration...</Typography>
+                    </Paper>
+                  )}
+                </Grid>
+                
+                <Grid item xs={12} md={6} sx={{ display: 'flex' }}>
+                  <Gatling />
+                </Grid>
+              </Grid>
 
-              <Routes>
-                <Route path="/front/users" element={<Users users={users} />} />
-                <Route path="/front/messages" element={<Messages messages={messages} />} />
-              </Routes>
+              <Box sx={{ mt: 4 }}>
+                <Routes>
+                  <Route path="/front/users" element={<Users users={users} />} />
+                  <Route path="/front/messages" element={<Messages messages={messages} />} />
+                </Routes>
+              </Box>
             </Box>
           </Container>
         </Box>

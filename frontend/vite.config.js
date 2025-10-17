@@ -1,13 +1,14 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { resolve } from 'path';
+import wasm from "vite-plugin-wasm";
+import topLevelAwait from "vite-plugin-top-level-await";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command, mode }) => {
   const isProduction = mode === 'production';
   
   return {
-    plugins: [react()],
+    plugins: [react(), wasm(), topLevelAwait()],
     
     // Development server configuration
     server: {
@@ -72,7 +73,12 @@ export default defineConfig(({ command, mode }) => {
     // Optimization settings
     optimizeDeps: {
       include: ['react', 'react-dom', 'react-router-dom', '@mui/material', '@mui/x-data-grid'],
-      exclude: []
+      exclude: ['wam-message-gatling-wasm']
+    },
+
+    // WASM configuration
+    worker: {
+      format: 'es'
     },
 
     // Development-specific settings
