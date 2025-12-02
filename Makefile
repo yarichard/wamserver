@@ -7,8 +7,8 @@ NPM_TOKEN ?= $(shell echo $$NPM_TOKEN)
 .PHONY: build run
 
 build:
-	docker build \
-		--build-arg NPM_TOKEN=$(NPM_TOKEN) \
+	DOCKER_BUILDKIT=1 docker build \
+		--secret id=npm_token,env=NPM_TOKEN \
 		-t $(IMAGE_NAME) \
 		-f $(DOCKERFILE) \
 		$(CONTEXT)
