@@ -31,7 +31,7 @@ RUN echo "//npm.pkg.github.com/:_authToken=${NPM_TOKEN}" >> .npmrc
 RUN npm install
 COPY frontend/ ./
 
-RUN npm run build -- --mode development && ls -la ../static
+RUN npm run build -- --mode production && ls -la ../static
 
 # Use a minimal base image for the final image
 FROM debian:bookworm-slim

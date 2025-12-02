@@ -72,7 +72,16 @@ export default defineConfig(({ command, mode }) => {
 
     // Optimization settings
     optimizeDeps: {
-      include: ['react', 'react-dom', 'react-router-dom', '@mui/material', '@mui/x-data-grid'],
+      include: [
+        'react', 
+        'react-dom', 
+        'react-router-dom', 
+        '@mui/material', 
+        '@mui/x-data-grid',
+        '@emotion/react',
+        '@emotion/styled',
+        '@mui/styled-engine'
+      ],
       exclude: ['wam-message-gatling-wasm']
     },
 
