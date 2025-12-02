@@ -15,6 +15,7 @@ import { WebSocketProvider } from './contexts/WebSocketContext';
 import Users from './components/Users';
 import Messages from './components/Messages';
 import Gatling from './components/Gatling';
+import MessageRateChart from './components/MessageRateChart';
 
 function Navigation() {
   const location = useLocation();
@@ -115,6 +116,10 @@ function App() {
                   <Gatling />
                 </Grid>
               </Grid>
+
+              <Box sx={{ mt: 3 }}>
+                <MessageRateChart />
+              </Box>
 
               <Box sx={{ mt: 4 }}>
                 <Routes>
