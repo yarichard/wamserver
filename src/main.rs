@@ -101,6 +101,11 @@ async fn main() {
         messaging::kafka::consume_kafka_message(state).await;
     });*/
 
+    // Launch Sytral data consumer loop
+    let _ = tokio::spawn(async move {
+        messaging::sytral::sytral_handler(state.clone()).await;
+    });
+
     // run it
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await
