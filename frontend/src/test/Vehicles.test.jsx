@@ -41,19 +41,10 @@ vi.mock('leaflet', () => ({
   }
 }));
 
-// Mock the DataGrid component from MUI to avoid CSS import issues
-vi.mock('@mui/x-data-grid', () => ({
-  DataGrid: ({ rows, columns }) => (
-    <div data-testid="data-grid">
-      {rows.map(row => (
-        <div key={row.id} data-testid={`vehicle-${row.id}`}>
-          <span data-testid={`vehicle-ref-${row.id}`}>{row.vehicle_ref}</span>
-          <span data-testid={`line-${row.id}`}>{row.line}</span>
-          <span data-testid={`direction-${row.id}`}>{row.direction}</span>
-        </div>
-      ))}
-    </div>
-  )
+// Mock MUI icons
+vi.mock('@mui/icons-material', () => ({
+  ExpandMore: () => <div data-testid="expand-more-icon" />,
+  ExpandLess: () => <div data-testid="expand-less-icon" />
 }));
 
 describe('Vehicles Component', () => {
@@ -61,7 +52,7 @@ describe('Vehicles Component', () => {
     vi.clearAllMocks();
   });
 
-  it('renders map and data grid', () => {
+  it('renders map and vehicle list', () => {
     const mockVehicles = [
       { 
         vehicle_ref: 'VEH001', 
@@ -79,8 +70,8 @@ describe('Vehicles Component', () => {
     render(<Vehicles />);
 
     expect(screen.getByTestId('map-container')).toBeInTheDocument();
-    expect(screen.getByTestId('data-grid')).toBeInTheDocument();
     expect(screen.getByText(/Vehicle Positions/)).toBeInTheDocument();
+    expect(screen.getByText(/Vehicles by Line/)).toBeInTheDocument();
   });
 
   it('renders vehicles from context', () => {
@@ -107,27 +98,21 @@ describe('Vehicles Component', () => {
 
     render(<Vehicles />);
 
-    expect(screen.getByTestId('vehicle-VEH001')).toBeInTheDocument();
     expect(screen.getByText('VEH001')).toBeInTheDocument();
-    expect(screen.getByTestId('line-VEH001')).toHaveTextContent('T1');
-    expect(screen.getByText('North')).toBeInTheDocument();
-    
-    expect(screen.getByTestId('vehicle-VEH002')).toBeInTheDocument();
     expect(screen.getByText('VEH002')).toBeInTheDocument();
-    expect(screen.getByTestId('line-VEH002')).toHaveTextContent('T2');
-    expect(screen.getByText('South')).toBeInTheDocument();
+    expect(screen.getAllByText('T1').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('T2').length).toBeGreaterThan(0);
   });
 
-  it('renders empty grid when no vehicles', () => {
+  it('renders empty vehicle list when no vehicles', () => {
     WebSocketContext.useWebSocket.mockReturnValue({
       vehicles: []
     });
 
     render(<Vehicles />);
 
-    const dataGrid = screen.getByTestId('data-grid');
-    expect(dataGrid).toBeInTheDocument();
-    expect(dataGrid.children.length).toBe(0);
+    expect(screen.getByText(/Vehicles by Line/)).toBeInTheDocument();
+    expect(screen.getByText(/Lines \(0\)/)).toBeInTheDocument();
   });
 
   it('handles vehicles without vehicle_ref by using index as id', () => {
@@ -146,10 +131,8 @@ describe('Vehicles Component', () => {
 
     render(<Vehicles />);
 
-    // Should use index (0) as id when vehicle_ref is missing
-    expect(screen.getByTestId('vehicle-0')).toBeInTheDocument();
-    expect(screen.getByTestId('line-0')).toHaveTextContent('T3');
-    expect(screen.getByText('East')).toBeInTheDocument();
+    // Should display line even without vehicle_ref
+    expect(screen.getAllByText('T3').length).toBeGreaterThan(0);
   });
 
   it('renders multiple vehicles correctly', () => {
@@ -168,9 +151,9 @@ describe('Vehicles Component', () => {
     expect(screen.getByText('VEH001')).toBeInTheDocument();
     expect(screen.getByText('VEH002')).toBeInTheDocument();
     expect(screen.getByText('VEH003')).toBeInTheDocument();
-    expect(screen.getByTestId('line-VEH001')).toHaveTextContent('T1');
-    expect(screen.getByTestId('line-VEH002')).toHaveTextContent('T2');
-    expect(screen.getByTestId('line-VEH003')).toHaveTextContent('T3');
+    expect(screen.getAllByText('T1').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('T2').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('T3').length).toBeGreaterThan(0);
   });
 
   it('displays vehicle location data', () => {
@@ -188,11 +171,11 @@ describe('Vehicles Component', () => {
       vehicles: mockVehicles
     });
 
-    const { container } = render(<Vehicles />);
+    render(<Vehicles />);
 
-    // Verify the DataGrid receives the vehicle with location data
-    const vehicle = screen.getByTestId('vehicle-VEH001');
-    expect(vehicle).toBeInTheDocument();
+    // Verify the vehicle is displayed with its data
+    expect(screen.getByText('VEH001')).toBeInTheDocument();
+    expect(screen.getAllByText('T1').length).toBeGreaterThan(0);
   });
 
   it('renders markers on map for each vehicle', () => {

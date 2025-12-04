@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use reqwest::Client;
 use log::{info, error};
 use crate::messaging::websocket::{broadcast_message};
+use chrono::{DateTime, Utc};
 
 const SYTRAL_URL: &str = "https://data.grandlyon.com/siri-lite/2.0/vehicle-monitoring.json";
 
@@ -17,6 +18,7 @@ pub struct Vehicle {
     pub direction: Option<String>,
     pub latitude: f64,
     pub longitude: f64,
+    pub timestamp: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,6 +76,9 @@ struct MonitoredVehicleJourney {
 
     #[serde(rename = "VehicleLocation")]
     vehicle_location: Option<VehicleLocation>,
+
+    #[serde(rename = "RecordedAtTime")]
+    timestamp: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -110,6 +115,7 @@ async fn get_vehicles() -> Result<VehicleList, Box<dyn std::error::Error>> {
                     direction: mvj.direction_ref.map(|w| w.value),
                     latitude: loc.latitude,
                     longitude: loc.longitude,
+                    timestamp: mvj.timestamp.unwrap_or_else(|| Utc::now()),
                 });
             }
         }

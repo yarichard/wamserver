@@ -1,8 +1,8 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { Box, Paper, Typography, Chip, Stack, Button } from '@mui/material';
-import { DataGrid } from '@mui/x-data-grid';
+import { Box, Paper, Typography, Chip, Stack, Button, Collapse, IconButton } from '@mui/material';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { useWebSocket } from '../contexts/WebSocketContext';
+import { ExpandMore, ExpandLess } from '@mui/icons-material';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -60,21 +60,31 @@ function Vehicles() {
   const [visibleLines, setVisibleLines] = useState(new Set());
   const [selectedVehicleId, setSelectedVehicleId] = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [expandedLines, setExpandedLines] = useState(new Set());
   const markerRefs = useRef({});
+  const lineColorMapRef = useRef({});
+  const colorIndexRef = useRef(0);
 
-  // Generate color mapping for unique lines
+  // Generate color mapping for unique lines - keep color assignments in memory
   const lineColorMap = useMemo(() => {
     const uniqueLines = [...new Set(vehicles.map(v => v.line).filter(Boolean))];
-    const colorMap = {};
-    uniqueLines.forEach((line, index) => {
-      colorMap[line] = LINE_COLORS[index % LINE_COLORS.length];
+    
+    // Assign colors to new lines, keeping existing assignments
+    uniqueLines.forEach((line) => {
+      if (!lineColorMapRef.current[line]) {
+        lineColorMapRef.current[line] = LINE_COLORS[colorIndexRef.current % LINE_COLORS.length];
+        colorIndexRef.current++;
+      }
     });
-    // Initialize all lines as visible only on first load
+    
+    // Initialize all lines as visible and expanded only on first load
     if (!isInitialized && visibleLines.size === 0 && uniqueLines.length > 0) {
       setVisibleLines(new Set(uniqueLines));
+      setExpandedLines(new Set(uniqueLines));
       setIsInitialized(true);
     }
-    return colorMap;
+    
+    return lineColorMapRef.current;
   }, [vehicles, visibleLines.size, isInitialized]);
 
   // Get unique lines
@@ -108,71 +118,47 @@ function Vehicles() {
   // Filter vehicles based on visible lines
   const filteredVehicles = vehicles.filter(v => visibleLines.has(v.line));
 
+  // Group vehicles by line for the grid
+  const groupedVehicles = useMemo(() => {
+    const groups = {};
+    filteredVehicles.forEach(vehicle => {
+      if (!groups[vehicle.line]) {
+        groups[vehicle.line] = [];
+      }
+      groups[vehicle.line].push(vehicle);
+    });
+    return groups;
+  }, [filteredVehicles]);
+
+  // Toggle line expansion
+  const toggleLineExpansion = (line) => {
+    setExpandedLines(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(line)) {
+        newSet.delete(line);
+      } else {
+        newSet.add(line);
+      }
+      return newSet;
+    });
+  };
+
+  // Clean up marker refs when filtered vehicles change
+  useEffect(() => {
+    const currentVehicleIds = new Set(filteredVehicles.map((v, index) => v.vehicle_ref || index));
+    const refsToKeep = {};
+    Object.keys(markerRefs.current).forEach(id => {
+      if (currentVehicleIds.has(id)) {
+        refsToKeep[id] = markerRefs.current[id];
+      }
+    });
+    markerRefs.current = refsToKeep;
+  }, [filteredVehicles]);
+
   // Get selected vehicle details
   const selectedVehicle = useMemo(() => {
     return filteredVehicles.find(v => (v.vehicle_ref || filteredVehicles.indexOf(v)) === selectedVehicleId);
   }, [selectedVehicleId, filteredVehicles]);
-
-  // Handle row selection
-  const handleSelectionChange = (selectionModel) => {
-    if (selectionModel.length > 0) {
-      const vehicleId = selectionModel[0];
-      setSelectedVehicleId(vehicleId);
-      
-      // Open popup for selected marker
-      if (markerRefs.current[vehicleId]) {
-        markerRefs.current[vehicleId].openPopup();
-      }
-    } else {
-      setSelectedVehicleId(null);
-    }
-  };
-
-  const columns = [
-    { 
-      field: 'vehicle_ref', 
-      headerName: 'Vehicle Ref', 
-      flex: 1,
-    },
-    {
-      field: 'line',
-      headerName: 'Line',
-      width: 100,
-    },
-    {
-      field: 'direction',
-      headerName: 'Direction',
-      width: 150,
-      hideable: true,
-    },
-    {
-      field: 'latitude',
-      headerName: 'Latitude',
-      width: 130,
-      type: 'number',
-      hideable: true,
-    },
-    {
-      field: 'longitude',
-      headerName: 'Longitude',
-      width: 130,
-      type: 'number',
-      hideable: true,
-    },
-  ];
-
-  // Column visibility model - hide all columns except vehicle_ref and line
-  const [columnVisibilityModel, setColumnVisibilityModel] = useState({
-    direction: false,
-    latitude: false,
-    longitude: false,
-  });
-
-  // Add id field for DataGrid if not present
-  const rowsWithId = filteredVehicles.map((vehicle, index) => ({
-    id: vehicle.vehicle_ref || index,
-    ...vehicle
-  }));
 
   // Calculate map center (average of all vehicle positions)
   const mapCenter = filteredVehicles.length > 0
@@ -299,40 +285,110 @@ function Vehicles() {
 
         {/* Data Grid Section */}
         <Box sx={{ flex: '0 0 30%', display: 'flex', flexDirection: 'column' }}>
-          <Paper elevation={2} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <DataGrid
-              rows={rowsWithId}
-              columns={columns}
-              pageSize={10}
-              rowsPerPageOptions={[10, 25, 50]}
-              onRowClick={(params) => {
-                // Toggle selection: if clicking the same row, deselect it
-                if (selectedVehicleId === params.id) {
-                  setSelectedVehicleId(null);
-                } else {
-                  setSelectedVehicleId(params.id);
-                  if (markerRefs.current[params.id]) {
-                    markerRefs.current[params.id].openPopup();
-                  }
-                }
-              }}
-              columnVisibilityModel={columnVisibilityModel}
-              onColumnVisibilityModelChange={setColumnVisibilityModel}
-              sx={{
-                '& .MuiDataGrid-cell:focus': {
-                  outline: 'none',
-                },
-                '& .MuiDataGrid-row:hover': {
-                  cursor: 'pointer',
-                },
-                '& .MuiDataGrid-row.Mui-selected': {
-                  backgroundColor: 'rgba(25, 118, 210, 0.12)',
-                  '&:hover': {
-                    backgroundColor: 'rgba(25, 118, 210, 0.16)',
-                  },
-                },
-              }}
-            />
+          <Paper elevation={2} sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+            <Typography variant="h6" gutterBottom>
+              Vehicles by Line
+            </Typography>
+            <Box sx={{ flex: 1, overflow: 'auto' }}>
+              {Object.keys(groupedVehicles).sort().map(line => (
+                <Box key={line} sx={{ mb: 2 }}>
+                  {/* Line Header */}
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      p: 1,
+                      backgroundColor: lineColorMap[line] || '#e0e0e0',
+                      color: '#fff',
+                      borderRadius: 1,
+                      cursor: 'pointer',
+                      '&:hover': {
+                        opacity: 0.9,
+                      },
+                    }}
+                    onClick={() => toggleLineExpansion(line)}
+                  >
+                    <IconButton size="small" sx={{ color: '#fff', mr: 1 }}>
+                      {expandedLines.has(line) ? <ExpandLess /> : <ExpandMore />}
+                    </IconButton>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', flex: 1 }}>
+                      {line}
+                    </Typography>
+                    <Typography variant="body2">
+                      ({groupedVehicles[line].length} vehicles)
+                    </Typography>
+                  </Box>
+
+                  {/* Vehicle List */}
+                  <Collapse in={expandedLines.has(line)}>
+                    <Box sx={{ mt: 1 }}>
+                      {groupedVehicles[line].map((vehicle, index) => {
+                        const vehicleId = vehicle.vehicle_ref || index;
+                        const isSelected = vehicleId === selectedVehicleId;
+                        const timestamp = vehicle.timestamp ? (() => {
+                          try {
+                            const date = new Date(vehicle.timestamp);
+                            const dateStr = date.toLocaleDateString('en-GB', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric'
+                            });
+                            const timeStr = date.toLocaleTimeString('en-GB', { 
+                              hour: '2-digit', 
+                              minute: '2-digit', 
+                              second: '2-digit',
+                              hour12: false 
+                            });
+                            return `${dateStr} ${timeStr}`;
+                          } catch (error) {
+                            return vehicle.timestamp;
+                          }
+                        })() : '';
+
+                        return (
+                          <Box
+                            key={vehicleId}
+                            sx={{
+                              p: 1.5,
+                              mb: 0.5,
+                              backgroundColor: isSelected ? 'rgba(25, 118, 210, 0.12)' : '#f5f5f5',
+                              borderRadius: 1,
+                              cursor: 'pointer',
+                              border: isSelected ? '2px solid rgba(25, 118, 210, 0.5)' : '1px solid #e0e0e0',
+                              '&:hover': {
+                                backgroundColor: isSelected ? 'rgba(25, 118, 210, 0.16)' : '#eeeeee',
+                              },
+                            }}
+                            onClick={() => {
+                              if (selectedVehicleId === vehicleId) {
+                                setSelectedVehicleId(null);
+                              } else {
+                                setSelectedVehicleId(vehicleId);
+                                if (markerRefs.current[vehicleId]) {
+                                  markerRefs.current[vehicleId].openPopup();
+                                }
+                              }
+                            }}
+                          >
+                            <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                              {vehicle.vehicle_ref}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
+                              {timestamp}
+                            </Typography>
+                            {vehicle.direction && (
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                                → {vehicle.direction}
+                              </Typography>
+                            )}
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  </Collapse>
+                </Box>
+              ))}
+            </Box>
           </Paper>
         </Box>
       </Box>
