@@ -15,7 +15,11 @@ vi.mock('react-leaflet', () => ({
   Marker: ({ children, position }) => (
     <div data-testid={`marker-${position[0]}-${position[1]}`}>{children}</div>
   ),
-  Popup: ({ children }) => <div data-testid="popup">{children}</div>
+  Popup: ({ children }) => <div data-testid="popup">{children}</div>,
+  useMap: () => ({
+    flyTo: vi.fn(),
+    setView: vi.fn(),
+  })
 }));
 
 // Mock leaflet CSS import
@@ -29,7 +33,11 @@ vi.mock('leaflet', () => ({
         prototype: { _getIconUrl: null },
         mergeOptions: vi.fn()
       }
-    }
+    },
+    divIcon: vi.fn((options) => ({
+      options,
+      _getIconUrl: vi.fn()
+    }))
   }
 }));
 
@@ -72,7 +80,7 @@ describe('Vehicles Component', () => {
 
     expect(screen.getByTestId('map-container')).toBeInTheDocument();
     expect(screen.getByTestId('data-grid')).toBeInTheDocument();
-    expect(screen.getByText('Vehicle Positions')).toBeInTheDocument();
+    expect(screen.getByText(/Vehicle Positions/)).toBeInTheDocument();
   });
 
   it('renders vehicles from context', () => {
@@ -101,12 +109,12 @@ describe('Vehicles Component', () => {
 
     expect(screen.getByTestId('vehicle-VEH001')).toBeInTheDocument();
     expect(screen.getByText('VEH001')).toBeInTheDocument();
-    expect(screen.getByText('T1')).toBeInTheDocument();
+    expect(screen.getByTestId('line-VEH001')).toHaveTextContent('T1');
     expect(screen.getByText('North')).toBeInTheDocument();
     
     expect(screen.getByTestId('vehicle-VEH002')).toBeInTheDocument();
     expect(screen.getByText('VEH002')).toBeInTheDocument();
-    expect(screen.getByText('T2')).toBeInTheDocument();
+    expect(screen.getByTestId('line-VEH002')).toHaveTextContent('T2');
     expect(screen.getByText('South')).toBeInTheDocument();
   });
 
@@ -140,7 +148,7 @@ describe('Vehicles Component', () => {
 
     // Should use index (0) as id when vehicle_ref is missing
     expect(screen.getByTestId('vehicle-0')).toBeInTheDocument();
-    expect(screen.getByText('T3')).toBeInTheDocument();
+    expect(screen.getByTestId('line-0')).toHaveTextContent('T3');
     expect(screen.getByText('East')).toBeInTheDocument();
   });
 
@@ -160,9 +168,9 @@ describe('Vehicles Component', () => {
     expect(screen.getByText('VEH001')).toBeInTheDocument();
     expect(screen.getByText('VEH002')).toBeInTheDocument();
     expect(screen.getByText('VEH003')).toBeInTheDocument();
-    expect(screen.getByText('T1')).toBeInTheDocument();
-    expect(screen.getByText('T2')).toBeInTheDocument();
-    expect(screen.getByText('T3')).toBeInTheDocument();
+    expect(screen.getByTestId('line-VEH001')).toHaveTextContent('T1');
+    expect(screen.getByTestId('line-VEH002')).toHaveTextContent('T2');
+    expect(screen.getByTestId('line-VEH003')).toHaveTextContent('T3');
   });
 
   it('displays vehicle location data', () => {
@@ -225,6 +233,6 @@ describe('Vehicles Component', () => {
 
     // Map should still render with default center
     expect(screen.getByTestId('map-container')).toBeInTheDocument();
-    expect(screen.getByText('Vehicle Positions')).toBeInTheDocument();
+    expect(screen.getByText(/Vehicle Positions/)).toBeInTheDocument();
   });
 });
