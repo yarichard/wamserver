@@ -23,3 +23,4 @@ axum-macros = "0.5.0"
 serde = "1.0.219"
 kafka = "0.10.0"
 tower = { version = "0.4.13" }
+reqwest = { version = "0.12.24", features = ["json"] }

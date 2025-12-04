@@ -59,7 +59,7 @@ ENV DATABASE_URL=sqlite://data/db.sqlite?mode=rwc \
     KAFKA_GROUP=wam \
     RUST_LOG=info \
     RUST_BACKTRACE=1
-
+    
 # Set the command (using shell form to see output)
 ENTRYPOINT ["/usr/local/bin/wamserver"]
 
