@@ -3,14 +3,14 @@ use axum::extract::ws::Message;
 use log::error;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
 
 static NEXT_ID: AtomicUsize = AtomicUsize::new(1);
 
 #[derive(Debug)]
 pub struct WsConnection {
     pub id: usize,
-    pub sender: broadcast::Sender<Message>,
+    pub sender: Arc<broadcast::Sender<Message>>
 }
 
 #[derive(Serialize, Deserialize)]
@@ -20,13 +20,13 @@ pub struct WsMessage<T: Serialize> {
 }
 
 impl WsConnection {
-    pub fn new(sender: broadcast::Sender<Message>) -> Self {
+    pub fn new(sender: &Arc<broadcast::Sender<Message>>) -> Self {
         let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-        Self { id, sender }
+        Self { id, sender: Arc::clone(sender) }
     }
 }
 
-pub fn broadcast_message<T: Serialize>(sender: &broadcast::Sender<axum::extract::ws::Message>, msg_type: String, message: T) -> Result<(), broadcast::error::SendError<Message>> {
+pub fn broadcast_message<T: Serialize>(sender: &Arc<broadcast::Sender<axum::extract::ws::Message>>, msg_type: String, message: T) -> Result<(), broadcast::error::SendError<Message>> {
     let msg_to_send = WsMessage {
         msg_type,
         message,
