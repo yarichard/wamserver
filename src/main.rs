@@ -24,9 +24,15 @@ pub mod messaging;
 
 #[derive(Clone)]
 pub struct WamServerState {
-    pub db: WamDatabase,
+    pub db: Arc<WamDatabase>,
     pub ws_connections: Arc<Mutex<Vec<WsConnection>>>,
-    pub ws_sender: broadcast::Sender<axum::extract::ws::Message>,
+    pub ws_sender: Arc<broadcast::Sender<axum::extract::ws::Message>>,
+}
+
+impl WamServerState {
+    pub fn get_db(&self) -> &WamDatabase {
+        &self.db
+    }
 }
 
 #[tokio::main]
@@ -38,16 +44,13 @@ async fn main() {
         .filter(None, LevelFilter::Info)
         .init();
 
-    // Open database
-    let db = database::WamDatabase::open().await;
-    
     // Create broadcast channel for WebSocket messages
     let (ws_sender, _) = broadcast::channel(100);
     
     let state = WamServerState {
-        db: db.clone(),
+        db: Arc::new(database::WamDatabase::open().await),
         ws_connections: Arc::new(Mutex::new(Vec::new())),
-        ws_sender: ws_sender,
+        ws_sender: Arc::new(ws_sender),
     };
 
     
@@ -96,14 +99,13 @@ async fn main() {
         .layer(cors)
         .fallback_service(static_service);
 
-    // Launch Kafka consumer loop
-    /*let _ = tokio::spawn(async move {
-        messaging::kafka::consume_kafka_message(state).await;
-    });*/
-
-    // Launch Sytral data consumer loop
+    let cloned_state: WamServerState = state.clone();
     let _ = tokio::spawn(async move {
-        messaging::sytral::sytral_handler(state.clone()).await;
+        messaging::kafka::consume_kafka_message(state.clone()).await
+    });
+
+    let _ = tokio::spawn(async move {
+        messaging::sytral::sytral_handler(cloned_state.clone()).await;
     });
 
     // run it

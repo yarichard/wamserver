@@ -7,13 +7,12 @@ use crate::{messaging::websocket::broadcast_message, WamServerState};
 pub async fn consume_kafka_message(state: WamServerState) {
 
     loop {
-        info!("Executing Kafka consuming loop");
-    
         // Create Kafka consumer
         let host = env::var("KAFKA_URL").expect("KAFKA_URL must be set");
         let topic: String = env::var("KAFKA_TOPIC").expect("KAFKA_TOPIC must be set");
         let group: String = env::var("KAFKA_GROUP").expect("KAFKA_GROUP must be set");
-                
+        info!("Executing Kafka consuming loop: host={}, topic={}, group={}", host, topic, group);
+            
         let consumer_res=
         Consumer::from_hosts(vec!(host.to_owned()))
             .with_topic(topic.to_owned())
@@ -66,5 +65,5 @@ pub async fn consume_kafka_message(state: WamServerState) {
         };
 
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-    }
+   }
 }
