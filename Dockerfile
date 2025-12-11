@@ -12,7 +12,7 @@ COPY entity/src entity/src
 COPY migration/src migration/src
 
 # Build the entire workspace in release mode
-RUN cargo build --release --workspace
+RUN cargo build --release
 
 # Build the front end
 FROM node:20 AS frontend-builder
