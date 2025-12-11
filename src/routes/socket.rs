@@ -21,7 +21,7 @@ async fn handle_socket(socket: WebSocket, state: WamServerState) {
     let mut rx = state.ws_sender.subscribe();
 
     // Create a new WsConnection and add it to the connections list
-    let ws_conn = WsConnection::new(state.ws_sender.clone());
+    let ws_conn = WsConnection::new(&state.ws_sender);
     let conn_id = ws_conn.id;
     
     {

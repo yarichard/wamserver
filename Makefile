@@ -3,6 +3,8 @@ IMAGE_NAME ?= wamserver:$(GIT_TAG)
 DOCKERFILE ?= Dockerfile
 CONTEXT ?= .
 NPM_TOKEN ?= $(shell echo $$NPM_TOKEN)
+SYTRAL_USERNAME ?= $(shell echo $$SYTRAL_USERNAME)
+SYTRAL_PASSWORD ?= $(shell echo $$SYTRAL_PASSWORD)
 
 .PHONY: build run
 
@@ -24,4 +26,6 @@ run:
 		-e KAFKA_URL=$(KAFKA_URL) \
 		-e KAFKA_TOPIC=$(KAFKA_TOPIC) \
 		-e KAFKA_GROUP=$(KAFKA_GROUP) \
+		-e SYTRAL_USERNAME=$(SYTRAL_USERNAME) \
+		-e SYTRAL_PASSWORD=$(SYTRAL_PASSWORD) \
 		$(IMAGE_NAME)

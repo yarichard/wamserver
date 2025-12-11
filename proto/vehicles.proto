@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package sytral;
+
+message Vehicle {
+    string line = 1;
+    string vehicle_ref = 2;
+    string direction = 3;
+    double latitude = 4;
+    double longitude = 5;
+    int64 timestamp = 6;  // Unix timestamp in seconds
+}
+
+message VehicleList {
+    repeated Vehicle vehicles = 1;
+}

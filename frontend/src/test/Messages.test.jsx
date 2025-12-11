@@ -3,9 +3,29 @@ import { render, screen } from '@testing-library/react';
 import Messages from '../components/Messages';
 import * as WebSocketContext from '../contexts/WebSocketContext';
 
+// Mock axios for KafkaParams
+vi.mock('axios', () => ({
+  default: {
+    get: vi.fn()
+  }
+}));
+
 // Mock the WebSocket context
 vi.mock('../contexts/WebSocketContext', () => ({
   useWebSocket: vi.fn()
+}));
+
+// Mock child components
+vi.mock('../components/KafkaParams', () => ({
+  default: () => <div data-testid="kafka-params">Kafka Params</div>
+}));
+
+vi.mock('../components/MessageRateChart', () => ({
+  default: () => <div data-testid="message-rate-chart">Message Rate Chart</div>
+}));
+
+vi.mock('../components/Gatling', () => ({
+  default: () => <div data-testid="gatling">Gatling</div>
 }));
 
 // Mock the DataGrid component from MUI to avoid CSS import issues
@@ -24,6 +44,20 @@ vi.mock('@mui/x-data-grid', () => ({
 describe('Messages Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('renders all child components', () => {
+    WebSocketContext.useWebSocket.mockReturnValue({
+      messages: [],
+      setMessages: vi.fn()
+    });
+
+    render(<Messages />);
+
+    expect(screen.getByTestId('kafka-params')).toBeInTheDocument();
+    expect(screen.getByTestId('gatling')).toBeInTheDocument();
+    expect(screen.getByTestId('message-rate-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('data-grid')).toBeInTheDocument();
   });
 
   it('renders messages from context', () => {

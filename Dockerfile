@@ -12,7 +12,7 @@ COPY entity/src entity/src
 COPY migration/src migration/src
 
 # Build the entire workspace in release mode
-RUN cargo build --release --workspace
+RUN cargo build --release
 
 # Build the front end
 FROM node:20 AS frontend-builder
@@ -59,7 +59,7 @@ ENV DATABASE_URL=sqlite://data/db.sqlite?mode=rwc \
     KAFKA_GROUP=wam \
     RUST_LOG=info \
     RUST_BACKTRACE=1
-
+    
 # Set the command (using shell form to see output)
 ENTRYPOINT ["/usr/local/bin/wamserver"]
 

@@ -6,6 +6,7 @@ const WebSocketContext = createContext(null);
 export function WebSocketProvider({ children }) {
   const [socket, setSocket] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
 
   useEffect(() => {
     // Create WebSocket connection using config
@@ -32,6 +33,8 @@ export function WebSocketProvider({ children }) {
             // Add new message at the beginning
             return [newMessage, ...prev];
           });
+        } else if (data.msg_type === 'sytral') {
+          setVehicles(data.message.vehicles);
         }
       } catch (e) {
         console.error('Error parsing WebSocket message:', e);
@@ -57,7 +60,9 @@ export function WebSocketProvider({ children }) {
   const value = {
     socket,
     messages,
-    setMessages
+    setMessages,
+    vehicles,
+    setVehicles
   };
 
   return (
