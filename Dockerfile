@@ -3,16 +3,25 @@ FROM rust:latest AS builder
 
 WORKDIR /app
 
+# Install protoc first (needed for build.rs)
+RUN apt-get update && apt-get install -y protobuf-compiler && rm -rf /var/lib/apt/lists/*
+
 # Copy manifests and build dependencies first for caching
 COPY Cargo.toml Cargo.lock ./
 COPY entity/Cargo.toml entity/Cargo.toml
 COPY migration/Cargo.toml migration/Cargo.toml
+
+# Copy build.rs and proto files (required by build.rs)
+COPY build.rs ./
+COPY proto ./proto
+
+# Copy source code
 COPY src ./src
 COPY entity/src entity/src
 COPY migration/src migration/src
 
 # Build the entire workspace in release mode
-RUN cargo build --release --workspace
+RUN RUSTFLAGS="-C target-cpu=native -C link-arg=-s" cargo build --release --workspace
 
 # Build the front end
 FROM node:20 AS frontend-builder
