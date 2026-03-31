@@ -1,5 +1,4 @@
 use kafka::consumer::{Consumer, FetchOffset};
-use std::env;
 use log::{info, error};
 
 use crate::{messaging::websocket::broadcast_message, WamServerState};
@@ -7,10 +6,9 @@ use crate::{messaging::websocket::broadcast_message, WamServerState};
 pub async fn consume_kafka_message(state: WamServerState) {
 
     loop {
-        // Create Kafka consumer
-        let host = env::var("KAFKA_URL").expect("KAFKA_URL must be set");
-        let topic: String = env::var("KAFKA_TOPIC").expect("KAFKA_TOPIC must be set");
-        let group: String = env::var("KAFKA_GROUP").expect("KAFKA_GROUP must be set");
+        let host = state.config.kafka_url.clone();
+        let topic = state.config.kafka_topic.clone();
+        let group = state.config.kafka_group.clone();
         info!("Executing Kafka consuming loop: host={}, topic={}, group={}", host, topic, group);
             
         let consumer_res=

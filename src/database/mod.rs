@@ -1,4 +1,3 @@
-use std::env;
 use log::info;
 use sea_orm::{Database, DatabaseConnection};
 use migration::{Migrator, MigratorTrait};
@@ -11,9 +10,7 @@ pub struct WamDatabase {
 }
 
 impl WamDatabase {
-    pub async fn open() -> Self {
-        
-        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    pub async fn open(database_url: &str) -> Self {
         info!("Opening database at {}", database_url);
         let conn = Database::connect(database_url).await.expect("Failed to connect to the database");
         Migrator::up(&conn, None).await.expect("Failed to run migrations");

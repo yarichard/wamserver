@@ -1,5 +1,3 @@
-use std::env;
-
 use serde::{Deserialize, Serialize};
 use reqwest::Client;
 use log::{info, error};
@@ -124,13 +122,11 @@ fn parse_vehicles_from_json(json: &str) -> Result<VehicleList> {
 }
 
 /// Public API: fetch all real-time vehicles from SYTRAL SIRI-Lite JSON
-async fn get_vehicles() -> Result<VehicleList> {
+async fn get_vehicles(username: &str, password: &str) -> Result<VehicleList> {
     let client = Client::new();
-    let username = env::var("SYTRAL_USERNAME").expect("SYTRAL_USERNAME must be set");
-    let password = env::var("SYTRAL_PASSWORD").expect("SYTRAL_PASSWORD must be set");
 
     let response = client.get(SYTRAL_URL)
-    .basic_auth(&username, Some(&password))
+    .basic_auth(username, Some(password))
     .send().await?;
 
     info!("Fetched SYTRAL data with status: {}", response.status());
@@ -154,8 +150,7 @@ fn to_proto_vehicle_list(vehicle_list: &VehicleList) -> proto::VehicleList {
 }
 
 /// Send VehicleList to Kafka using protobuf encoding
-async fn send_to_kafka(vehicle_list: &VehicleList) -> Result<()> {
-    let kafka_url = env::var("KAFKA_URL").expect("KAFKA_URL must be set");
+async fn send_to_kafka(vehicle_list: &VehicleList, kafka_url: &str) -> Result<()> {
     let topic = "vehicles";
     
     // Convert to protobuf
@@ -166,7 +161,7 @@ async fn send_to_kafka(vehicle_list: &VehicleList) -> Result<()> {
     proto_vehicles.encode(&mut buf)?;
     
     // Create Kafka producer
-    let mut producer = Producer::from_hosts(vec![kafka_url])
+    let mut producer = Producer::from_hosts(vec![kafka_url.to_string()])
         .with_ack_timeout(std::time::Duration::from_secs(1))
         .with_required_acks(RequiredAcks::One)
         .create()?;
@@ -296,12 +291,12 @@ pub async fn sytral_handler(state: crate::WamServerState) -> () {
     loop {
         info!("Executing Sytral consuming loop");
 
-        match get_vehicles().await {
+        match get_vehicles(&state.config.sytral_username, &state.config.sytral_password).await {
             Ok(vehicles) => {
                 info!("Fetched {} vehicles from SYTRAL", vehicles.vehicles.len());
 
                 // Send to Kafka
-                if let Err(e) = send_to_kafka(&vehicles).await {
+                if let Err(e) = send_to_kafka(&vehicles, &state.config.kafka_url).await {
                     error!("Error sending vehicles to Kafka: {}", e);
                 }
 

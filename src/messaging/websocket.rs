@@ -10,7 +10,6 @@ static NEXT_ID: AtomicUsize = AtomicUsize::new(1);
 #[derive(Debug)]
 pub struct WsConnection {
     pub id: usize,
-    pub sender: Arc<broadcast::Sender<Message>>
 }
 
 #[derive(Serialize, Deserialize)]
@@ -20,9 +19,9 @@ pub struct WsMessage<T: Serialize> {
 }
 
 impl WsConnection {
-    pub fn new(sender: &Arc<broadcast::Sender<Message>>) -> Self {
+    pub fn new() -> Self {
         let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-        Self { id, sender: Arc::clone(sender) }
+        Self { id }
     }
 }
 
@@ -70,19 +69,15 @@ mod tests {
 
     #[test]
     fn ws_connection_ids_are_unique() {
-        let (tx, _rx) = broadcast::channel(16);
-        let sender = Arc::new(tx);
-        let c1 = WsConnection::new(&sender);
-        let c2 = WsConnection::new(&sender);
+        let c1 = WsConnection::new();
+        let c2 = WsConnection::new();
         assert_ne!(c1.id, c2.id);
     }
 
     #[test]
     fn ws_connection_ids_increment() {
-        let (tx, _rx) = broadcast::channel(16);
-        let sender = Arc::new(tx);
-        let c1 = WsConnection::new(&sender);
-        let c2 = WsConnection::new(&sender);
+        let c1 = WsConnection::new();
+        let c2 = WsConnection::new();
         assert_eq!(c2.id, c1.id + 1);
     }
 
