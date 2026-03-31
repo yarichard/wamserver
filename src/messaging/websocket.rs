@@ -39,3 +39,60 @@ pub fn broadcast_message<T: Serialize>(sender: &Arc<broadcast::Sender<axum::extr
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::Value;
+
+    #[test]
+    fn ws_message_serializes_with_correct_structure() {
+        let msg = WsMessage {
+            msg_type: "message".to_string(),
+            message: serde_json::json!({"text": "hello", "user_id": 1}),
+        };
+        let json: Value = serde_json::from_str(&serde_json::to_string(&msg).unwrap()).unwrap();
+        assert_eq!(json["msg_type"], "message");
+        assert_eq!(json["message"]["text"], "hello");
+        assert_eq!(json["message"]["user_id"], 1);
+    }
+
+    #[test]
+    fn ws_message_serializes_sytral_type() {
+        // Clients rely on the msg_type field to route messages — verify "sytral" is preserved
+        let msg = WsMessage {
+            msg_type: "sytral".to_string(),
+            message: Vec::<String>::new(),
+        };
+        let json: Value = serde_json::from_str(&serde_json::to_string(&msg).unwrap()).unwrap();
+        assert_eq!(json["msg_type"], "sytral");
+    }
+
+    #[test]
+    fn ws_connection_ids_are_unique() {
+        let (tx, _rx) = broadcast::channel(16);
+        let sender = Arc::new(tx);
+        let c1 = WsConnection::new(&sender);
+        let c2 = WsConnection::new(&sender);
+        assert_ne!(c1.id, c2.id);
+    }
+
+    #[test]
+    fn ws_connection_ids_increment() {
+        let (tx, _rx) = broadcast::channel(16);
+        let sender = Arc::new(tx);
+        let c1 = WsConnection::new(&sender);
+        let c2 = WsConnection::new(&sender);
+        assert_eq!(c2.id, c1.id + 1);
+    }
+
+    #[test]
+    fn broadcast_with_no_receivers_returns_ok() {
+        let (tx, _rx) = broadcast::channel::<Message>(16);
+        // Drop the receiver so there are no active subscribers
+        drop(_rx);
+        let sender = Arc::new(tx);
+        let result = broadcast_message(&sender, "test".to_string(), "payload");
+        assert!(result.is_ok());
+    }
+}

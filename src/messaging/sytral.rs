@@ -97,25 +97,10 @@ struct VehicleLocation {
     latitude: f64,
 }
 
-/// Public API: fetch all real-time vehicles from SYTRAL SIRI-Lite JSON
-async fn get_vehicles() -> Result<VehicleList> {
-    let client = Client::new();
-    let username = env::var("SYTRAL_USERNAME").expect("SYTRAL_USERNAME must be set");
-    let password = env::var("SYTRAL_PASSWORD").expect("SYTRAL_PASSWORD must be set");
-        
-    let response = client.get(SYTRAL_URL)
-    .basic_auth(&username, Some(&password))
-    .send().await?;
-    
-    info!("Fetched SYTRAL data with status: {}", response.status());
-
-    let siri_root: SiriRoot = response.json().await?;
-    // print the first 500 characters of the response for debugging
-    //let text = response.text().await?;
-    //let snippet = &text[..std::cmp::min(500, text.len())];
-    //info!("SYTRAL response snippet: {}", snippet);
-    //let siri_root: SiriRoot = serde_json::from_str(&text)?;
-
+/// Parse a SYTRAL SIRI-Lite JSON string into a VehicleList.
+/// Vehicles without a VehicleLocation are silently skipped.
+fn parse_vehicles_from_json(json: &str) -> Result<VehicleList> {
+    let siri_root: SiriRoot = serde_json::from_str(json)?;
     let mut vehicles = Vec::new();
 
     for delivery in siri_root.siri.service_delivery.vehicle_monitoring_delivery {
@@ -136,6 +121,22 @@ async fn get_vehicles() -> Result<VehicleList> {
     }
 
     Ok(VehicleList { vehicles })
+}
+
+/// Public API: fetch all real-time vehicles from SYTRAL SIRI-Lite JSON
+async fn get_vehicles() -> Result<VehicleList> {
+    let client = Client::new();
+    let username = env::var("SYTRAL_USERNAME").expect("SYTRAL_USERNAME must be set");
+    let password = env::var("SYTRAL_PASSWORD").expect("SYTRAL_PASSWORD must be set");
+
+    let response = client.get(SYTRAL_URL)
+    .basic_auth(&username, Some(&password))
+    .send().await?;
+
+    info!("Fetched SYTRAL data with status: {}", response.status());
+
+    let text = response.text().await?;
+    parse_vehicles_from_json(&text)
 }
 
 /// Convert VehicleList to protobuf format
@@ -176,6 +177,119 @@ async fn send_to_kafka(vehicle_list: &VehicleList) -> Result<()> {
     info!("Sent {} vehicles to Kafka topic '{}'", vehicle_list.vehicles.len(), topic);
     
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sytral_json(mvj_fields: &str) -> String {
+        format!(
+            r#"{{
+                "Siri": {{
+                    "ServiceDelivery": {{
+                        "VehicleMonitoringDelivery": [{{
+                            "VehicleActivity": [{{
+                                "MonitoredVehicleJourney": {{ {mvj_fields} }}
+                            }}]
+                        }}]
+                    }}
+                }}
+            }}"#
+        )
+    }
+
+    fn full_mvj() -> String {
+        sytral_json(r#"
+            "LineRef": {"value": "T1"},
+            "VehicleRef": {"value": "V42"},
+            "DirectionRef": {"value": "Inbound"},
+            "VehicleLocation": {"Longitude": 4.8357, "Latitude": 45.7640},
+            "RecordedAtTime": "2024-01-15T10:30:00Z"
+        "#)
+    }
+
+    #[test]
+    fn parse_vehicle_with_all_fields() {
+        let result = parse_vehicles_from_json(&full_mvj()).unwrap();
+        assert_eq!(result.vehicles.len(), 1);
+        let v = &result.vehicles[0];
+        assert_eq!(v.line.as_deref(), Some("T1"));
+        assert_eq!(v.vehicle_ref.as_deref(), Some("V42"));
+        assert_eq!(v.direction.as_deref(), Some("Inbound"));
+        assert!((v.latitude - 45.7640).abs() < 1e-4);
+        assert!((v.longitude - 4.8357).abs() < 1e-4);
+    }
+
+    #[test]
+    fn parse_vehicle_without_location_is_skipped() {
+        let json = sytral_json(r#"
+            "LineRef": {"value": "T2"},
+            "VehicleRef": {"value": "V99"}
+        "#);
+        let result = parse_vehicles_from_json(&json).unwrap();
+        assert_eq!(result.vehicles.len(), 0, "vehicle without location must be skipped");
+    }
+
+    #[test]
+    fn parse_vehicle_with_missing_optional_fields() {
+        let json = sytral_json(r#"
+            "VehicleLocation": {"Longitude": 4.83, "Latitude": 45.75},
+            "RecordedAtTime": "2024-06-01T08:00:00Z"
+        "#);
+        let result = parse_vehicles_from_json(&json).unwrap();
+        assert_eq!(result.vehicles.len(), 1);
+        let v = &result.vehicles[0];
+        assert!(v.line.is_none());
+        assert!(v.vehicle_ref.is_none());
+        assert!(v.direction.is_none());
+    }
+
+    #[test]
+    fn parse_vehicle_with_missing_timestamp_still_parses() {
+        let json = sytral_json(r#"
+            "VehicleLocation": {"Longitude": 4.83, "Latitude": 45.75}
+        "#);
+        // Should not error — missing timestamp falls back to Utc::now()
+        let result = parse_vehicles_from_json(&json).unwrap();
+        assert_eq!(result.vehicles.len(), 1);
+    }
+
+    #[test]
+    fn parse_invalid_json_returns_error() {
+        assert!(parse_vehicles_from_json("not json at all").is_err());
+    }
+
+    #[test]
+    fn proto_conversion_preserves_coordinates_and_timestamp() {
+        let result = parse_vehicles_from_json(&full_mvj()).unwrap();
+        let proto = to_proto_vehicle_list(&result);
+        assert_eq!(proto.vehicles.len(), 1);
+        let pv = &proto.vehicles[0];
+        assert!((pv.latitude - 45.7640).abs() < 1e-4);
+        assert!((pv.longitude - 4.8357).abs() < 1e-4);
+        // 2024-01-15T10:30:00Z → unix timestamp 1705314600
+        assert_eq!(pv.timestamp, 1705314600);
+    }
+
+    #[test]
+    fn proto_conversion_maps_none_fields_to_empty_string() {
+        let vehicle_list = VehicleList {
+            vehicles: vec![Vehicle {
+                line: None,
+                vehicle_ref: None,
+                direction: None,
+                latitude: 45.0,
+                longitude: 4.0,
+                timestamp: Utc::now(),
+            }],
+        };
+        let proto = to_proto_vehicle_list(&vehicle_list);
+        let pv = &proto.vehicles[0];
+        assert_eq!(pv.line, "");
+        assert_eq!(pv.vehicle_ref, "");
+        assert_eq!(pv.direction, "");
+    }
 }
 
 pub async fn sytral_handler(state: crate::WamServerState) -> () {
