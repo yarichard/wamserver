@@ -12,12 +12,13 @@ use tower_http::{
 };
 use log::{LevelFilter};
 use env_logger::Builder;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tokio::sync::broadcast;
 
+use crate::config::AppConfig;
 use crate::database::WamDatabase;
-use crate::messaging::websocket::WsConnection;
 
+pub mod config;
 pub mod routes;
 pub mod database;
 pub mod messaging;
@@ -25,7 +26,7 @@ pub mod messaging;
 #[derive(Clone)]
 pub struct WamServerState {
     pub db: Arc<WamDatabase>,
-    pub ws_connections: Arc<Mutex<Vec<WsConnection>>>,
+    pub config: Arc<AppConfig>,
     pub ws_sender: Arc<broadcast::Sender<axum::extract::ws::Message>>,
 }
 
@@ -44,12 +45,15 @@ async fn main() {
         .filter(None, LevelFilter::Info)
         .init();
 
+    let config = AppConfig::from_env().expect("Failed to load configuration");
+
     // Create broadcast channel for WebSocket messages
     let (ws_sender, _) = broadcast::channel(100);
-    
+
+    let db = database::WamDatabase::open(&config.database_url).await;
     let state = WamServerState {
-        db: Arc::new(database::WamDatabase::open().await),
-        ws_connections: Arc::new(Mutex::new(Vec::new())),
+        db: Arc::new(db),
+        config: Arc::new(config),
         ws_sender: Arc::new(ws_sender),
     };
 

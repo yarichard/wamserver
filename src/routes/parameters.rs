@@ -1,6 +1,6 @@
-use axum::Json;
+use axum::{extract::State, Json};
 use serde::Serialize;
-use std::env;
+use crate::WamServerState;
 
 #[derive(Serialize)]
 pub struct KafkaParameters {
@@ -9,12 +9,12 @@ pub struct KafkaParameters {
     kafka_group: String,
 }
 
-pub async fn get_kafka_parameters() -> Json<KafkaParameters> {
+pub async fn get_kafka_parameters(State(state): State<WamServerState>) -> Json<KafkaParameters> {
     let params = KafkaParameters {
-        kafka_url: env::var("KAFKA_URL").unwrap_or_default(),
-        kafka_topic: env::var("KAFKA_TOPIC").unwrap_or_default(),
-        kafka_group: env::var("KAFKA_GROUP").unwrap_or_default(),
+        kafka_url: state.config.kafka_url.clone(),
+        kafka_topic: state.config.kafka_topic.clone(),
+        kafka_group: state.config.kafka_group.clone(),
     };
-    
+
     Json(params)
 }

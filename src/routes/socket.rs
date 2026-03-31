@@ -20,15 +20,8 @@ async fn handle_socket(socket: WebSocket, state: WamServerState) {
     // Create a new subscription to the broadcast channel
     let mut rx = state.ws_sender.subscribe();
 
-    // Create a new WsConnection and add it to the connections list
-    let ws_conn = WsConnection::new(&state.ws_sender);
-    let conn_id = ws_conn.id;
-    
-    {
-        let mut connections = state.ws_connections.lock().unwrap();
-        connections.push(ws_conn);
-        info!("New WebSocket connection established: {}", conn_id);
-    }
+    let conn_id = WsConnection::new().id;
+    info!("New WebSocket connection established: {}", conn_id);
 
     // Handle incoming messages
     let mut send_task = tokio::spawn(async move {
@@ -66,10 +59,5 @@ async fn handle_socket(socket: WebSocket, state: WamServerState) {
         _ = &mut recv_task => send_task.abort(),
     }
 
-    // Clean up: remove the connection from the list
-    {
-        let mut connections = state.ws_connections.lock().unwrap();
-        connections.retain(|conn| conn.id != conn_id);
-        info!("WebSocket connection removed: {}", conn_id);
-    }
+    info!("WebSocket connection removed: {}", conn_id);
 }
