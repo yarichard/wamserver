@@ -18,6 +18,7 @@ use tokio::sync::broadcast;
 use crate::config::AppConfig;
 use crate::database::WamDatabase;
 
+pub mod auth;
 pub mod config;
 pub mod routes;
 pub mod database;
@@ -65,6 +66,9 @@ async fn main() {
         .route("/info", get(routes::services::get_messages_count))
         .route("/user", get(routes::services::get_users).post(routes::services::create_user))
         .route("/parameters", get(routes::parameters::get_kafka_parameters))
+        .route("/auth/register", axum::routing::post(routes::auth::register))
+        .route("/auth/login", axum::routing::post(routes::auth::login))
+        .route("/auth/me", get(routes::auth::get_me))
         .with_state(state.clone());
 
     // Create static file service with proper MIME types

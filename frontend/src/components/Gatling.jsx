@@ -8,9 +8,12 @@ import {
   Alert,
   Typography,
 } from '@mui/material';
-import * as wasm from "@yarichard/wam_message_gatling";
+import init, * as wasm from "@yarichard/wam_message_gatling";
+import wasmUrl from "@yarichard/wam_message_gatling/wam_message_gatling_bg.wasm?url";
+import { useAuth } from '../contexts/AuthContext';
 
 function Gatling() {
+  const { token } = useAuth();
   // Gatling WASM state
   const [gatlingConfig, setGatlingConfig] = useState({
     messagesNb: 10,
@@ -27,11 +30,13 @@ function Gatling() {
     setGatlingResult(null);
 
     try {
+      await init(wasmUrl);
       // Execute the gatling test
       const result = await wasm.gatling_execute_standalone(
         gatlingConfig.messagesNb,
         gatlingConfig.msgSec,
-        gatlingConfig.serverUrl
+        gatlingConfig.serverUrl,
+        token || ''
       );
       
       setGatlingResult(result);

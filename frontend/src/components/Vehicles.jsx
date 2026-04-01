@@ -68,7 +68,7 @@ function Vehicles() {
   // Generate color mapping for unique lines - keep color assignments in memory
   const lineColorMap = useMemo(() => {
     const uniqueLines = [...new Set(vehicles.map(v => v.line).filter(Boolean))];
-    
+
     // Assign colors to new lines, keeping existing assignments
     uniqueLines.forEach((line) => {
       if (!lineColorMapRef.current[line]) {
@@ -76,16 +76,19 @@ function Vehicles() {
         colorIndexRef.current++;
       }
     });
-    
-    // Initialize all lines as visible and expanded only on first load
-    if (!isInitialized && visibleLines.size === 0 && uniqueLines.length > 0) {
+
+    return lineColorMapRef.current;
+  }, [vehicles]);
+
+  // Initialize all lines as visible and expanded on first data arrival
+  useEffect(() => {
+    if (!isInitialized && vehicles.length > 0) {
+      const uniqueLines = [...new Set(vehicles.map(v => v.line).filter(Boolean))];
       setVisibleLines(new Set(uniqueLines));
       setExpandedLines(new Set(uniqueLines));
       setIsInitialized(true);
     }
-    
-    return lineColorMapRef.current;
-  }, [vehicles, visibleLines.size, isInitialized]);
+  }, [vehicles, isInitialized]);
 
   // Get unique lines
   const uniqueLines = useMemo(() => {
