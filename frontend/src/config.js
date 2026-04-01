@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 // Environment configuration
 const config = {
   // WebSocket configuration
@@ -13,7 +15,20 @@ const config = {
   }
 };
 
-// Construct WebSocket URL
+// Construct WebSocket URL (token appended at runtime by WebSocketContext)
 config.ws.url = `${config.ws.protocol}//${config.ws.host}/api/ws`;
+
+// Axios interceptor: redirect to /login on 401
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('wam_access_token');
+      delete axios.defaults.headers.common['Authorization'];
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default config;

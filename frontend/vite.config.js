@@ -12,7 +12,7 @@ export default defineConfig(({ command, mode }) => {
     
     // Development server configuration
     server: {
-      port: 8080,
+      port: 8085,
       host: true, // Listen on all addresses
       strictPort: true,
       watch: {

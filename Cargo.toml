@@ -29,6 +29,10 @@ prost = "0.13"
 prost-types = "0.13"
 anyhow = "1.0"
 tokio_schedule = "0.3.2"
+jsonwebtoken = "9"
+argon2 = "0.5"
+axum-extra = { version = "0.10", features = ["typed-header"] }
+uuid = { version = "1", features = ["v4"] }
 
 [build-dependencies]
 prost-build = "0.13"

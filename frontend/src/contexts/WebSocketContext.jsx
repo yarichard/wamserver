@@ -9,10 +9,12 @@ export function WebSocketProvider({ children }) {
   const [vehicles, setVehicles] = useState([]);
 
   useEffect(() => {
-    // Create WebSocket connection using config
-    const wsUrl = config.ws.url;
-    
-    console.log(`Connecting to WebSocket: ${wsUrl}`);
+    const token = localStorage.getItem('wam_access_token');
+    // Append JWT token as query param for WebSocket auth
+    const wsUrl = token
+      ? `${config.ws.url}?token=${encodeURIComponent(token)}`
+      : config.ws.url;
+
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
@@ -25,12 +27,8 @@ export function WebSocketProvider({ children }) {
         if (data.msg_type === 'message') {
           setMessages(prev => {
             const newMessage = data.message;
-            // Check if message with this ID already exists
             const exists = prev.some(msg => msg.id === newMessage.id);
-            if (exists) {
-              return prev; // Don't add duplicate message
-            }
-            // Add new message at the beginning
+            if (exists) return prev;
             return [newMessage, ...prev];
           });
         } else if (data.msg_type === 'sytral') {
@@ -51,7 +49,6 @@ export function WebSocketProvider({ children }) {
 
     setSocket(ws);
 
-    // Cleanup on unmount
     return () => {
       ws.close();
     };

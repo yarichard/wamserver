@@ -12,6 +12,9 @@ pub struct Model {
     pub name: String,
     #[sea_orm(unique)]
     pub email: String,
+    #[serde(skip_serializing, skip_deserializing)]
+    pub password_hash: String,
+    pub created_at: DateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

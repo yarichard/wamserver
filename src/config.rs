@@ -9,6 +9,7 @@ pub struct AppConfig {
     pub kafka_group: String,
     pub sytral_username: String,
     pub sytral_password: String,
+    pub jwt_secret: String,
 }
 
 impl AppConfig {
@@ -21,6 +22,7 @@ impl AppConfig {
             kafka_group: env::var("KAFKA_GROUP").context("KAFKA_GROUP must be set")?,
             sytral_username: env::var("SYTRAL_USERNAME").context("SYTRAL_USERNAME must be set")?,
             sytral_password: env::var("SYTRAL_PASSWORD").context("SYTRAL_PASSWORD must be set")?,
+            jwt_secret: env::var("JWT_SECRET").context("JWT_SECRET must be set")?,
         })
     }
 }

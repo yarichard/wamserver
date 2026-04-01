@@ -1,16 +1,34 @@
 use axum::{
-    extract::{ws::{Message, WebSocket, WebSocketUpgrade}, State},
-    response::Response,
+    extract::{ws::{Message, WebSocket, WebSocketUpgrade}, Query, State},
+    http::StatusCode,
+    response::{IntoResponse, Response},
 };
 use futures::{SinkExt, StreamExt};
+use serde::Deserialize;
+use crate::auth::claims::decode_jwt;
 use crate::WamServerState;
 use crate::messaging::websocket::WsConnection;
 use log::{error, info};
 
+#[derive(Deserialize)]
+pub struct WsQuery {
+    token: Option<String>,
+}
+
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
+    Query(query): Query<WsQuery>,
     State(state): State<WamServerState>,
 ) -> Response {
+    let token = match query.token {
+        Some(t) => t,
+        None => return StatusCode::UNAUTHORIZED.into_response(),
+    };
+
+    if decode_jwt(&token, &state.config.jwt_secret).is_err() {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+
     ws.on_upgrade(|socket| handle_socket(socket, state))
 }
 

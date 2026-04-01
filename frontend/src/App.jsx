@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   AppBar,
@@ -9,14 +9,18 @@ import {
   Box,
   Button,
 } from '@mui/material';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import Users from './components/Users';
 import Messages from './components/Messages';
 import Vehicles from './components/Vehicles';
+import LoginPage from './components/LoginPage';
+import PrivateRoute from './components/PrivateRoute';
 
 function Navigation() {
   const location = useLocation();
-  
+  const { logout } = useAuth();
+
   return (
     <AppBar position="static">
       <Toolbar>
@@ -27,7 +31,7 @@ function Navigation() {
           color="inherit"
           component={Link}
           to="/front/users"
-          sx={{ 
+          sx={{
             textDecoration: 'none',
             backgroundColor: location.pathname === '/front/users' ? 'rgba(255, 255, 255, 0.1)' : 'transparent'
           }}
@@ -38,7 +42,7 @@ function Navigation() {
           color="inherit"
           component={Link}
           to="/front/messages"
-          sx={{ 
+          sx={{
             textDecoration: 'none',
             backgroundColor: location.pathname === '/front/messages' ? 'rgba(255, 255, 255, 0.1)' : 'transparent'
           }}
@@ -49,19 +53,22 @@ function Navigation() {
           color="inherit"
           component={Link}
           to="/front/vehicles"
-          sx={{ 
+          sx={{
             textDecoration: 'none',
             backgroundColor: location.pathname === '/front/vehicles' ? 'rgba(255, 255, 255, 0.1)' : 'transparent'
           }}
         >
           Vehicles
         </Button>
+        <Button color="inherit" onClick={logout}>
+          Sign out
+        </Button>
       </Toolbar>
     </AppBar>
   );
 }
 
-function App() {
+function MainApp() {
   const [users, setUsers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -90,24 +97,42 @@ function App() {
   if (error) return <div>Error: {error}</div>;
 
   return (
-    <BrowserRouter>
-      <WebSocketProvider>
-        <Box sx={{ flexGrow: 1 }}>
-          <Navigation />
+    <WebSocketProvider>
+      <Box sx={{ flexGrow: 1 }}>
+        <Navigation />
         <Container maxWidth="xl" sx={{ px: 1 }}>
+          <Box sx={{ mt: 4 }}>
             <Box sx={{ mt: 4 }}>
-
-              <Box sx={{ mt: 4 }}>
-                <Routes>
-                  <Route path="/front/users" element={<Users users={users} />} />
-                  <Route path="/front/messages" element={<Messages messages={messages} />} />
-                  <Route path="/front/vehicles" element={<Vehicles />} />
-                </Routes>
-              </Box>
+              <Routes>
+                <Route path="users" element={<Users users={users} />} />
+                <Route path="messages" element={<Messages messages={messages} />} />
+                <Route path="vehicles" element={<Vehicles />} />
+              </Routes>
             </Box>
-          </Container>
-        </Box>
-      </WebSocketProvider>
+          </Box>
+        </Container>
+      </Box>
+    </WebSocketProvider>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/front/*"
+            element={
+              <PrivateRoute>
+                <MainApp />
+              </PrivateRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/front/users" replace />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
