@@ -65,6 +65,7 @@ async fn main() {
         .route("/message", get(routes::services::get_messages).post(routes::services::create_message))
         .route("/info", get(routes::services::get_messages_count))
         .route("/user", get(routes::services::get_users).post(routes::services::create_user))
+        .route("/user/{id}", axum::routing::put(routes::services::update_user))
         .route("/parameters", get(routes::parameters::get_kafka_parameters))
         .route("/auth/register", axum::routing::post(routes::auth::register))
         .route("/auth/login", axum::routing::post(routes::auth::login))
