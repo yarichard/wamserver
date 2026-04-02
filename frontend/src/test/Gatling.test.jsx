@@ -5,7 +5,16 @@ import Gatling from '../components/Gatling';
 
 // Mock the WASM module
 vi.mock('@yarichard/wam_message_gatling', () => ({
+  default: vi.fn().mockResolvedValue(undefined),
   gatling_execute_standalone: vi.fn()
+}));
+
+vi.mock('@yarichard/wam_message_gatling/wam_message_gatling_bg.wasm?url', () => ({
+  default: 'mock-wasm-url'
+}));
+
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({ token: null })
 }));
 
 import * as wasm from '@yarichard/wam_message_gatling';
@@ -64,7 +73,7 @@ describe('Gatling Component', () => {
     const button = screen.getByRole('button', { name: /Run Gatling Test/i });
     await user.click(button);
 
-    expect(wasm.gatling_execute_standalone).toHaveBeenCalledWith(10, 5, window.location.origin);
+    expect(wasm.gatling_execute_standalone).toHaveBeenCalledWith(10, 5, window.location.origin, '');
     
     await waitFor(() => {
       expect(screen.getByText('Test completed successfully')).toBeInTheDocument();
