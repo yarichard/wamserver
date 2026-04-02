@@ -1,7 +1,7 @@
 use axum::http::StatusCode;
 use axum::{Json};
 use axum_macros::debug_handler;
-use axum::extract::State;
+use axum::extract::{State, Path};
 use crate::auth::middleware::RequireAuth;
 use crate::messaging::websocket::{broadcast_message};
 use crate::{WamServerState};
@@ -87,4 +87,25 @@ pub async fn get_messages_count(state: State<WamServerState>, RequireAuth(_claim
 pub async fn get_users(state: State<WamServerState>, RequireAuth(_claims): RequireAuth) -> Json<Vec<entity::user::Model>> {
     let users = state.db.get_users().await.unwrap_or_else(|_| vec![]);
     Json(users)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdateUserRequest {
+    name: String,
+}
+
+#[debug_handler]
+pub async fn update_user(
+    state: State<WamServerState>,
+    RequireAuth(_claims): RequireAuth,
+    Path(id): Path<i32>,
+    Json(body): Json<UpdateUserRequest>,
+) -> Result<StatusCode, StatusCode> {
+    match state.db.update_user_name(id, body.name).await {
+        Ok(_) => Ok(StatusCode::OK),
+        Err(e) => {
+            error!("Error updating user {}: {}", id, e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
 }

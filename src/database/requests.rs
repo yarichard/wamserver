@@ -60,6 +60,13 @@ impl WamDatabase {
             .ok_or(DbErr::RecordNotFound(format!("User with email {} not found", email)))
     }
 
+    pub async fn update_user_name(&self, id: i32, name: String) -> Result<user::Model, DbErr> {
+        let user = self.get_user(id).await?;
+        let mut active_user: user::ActiveModel = user.into();
+        active_user.name = Set(name);
+        active_user.update(&self.conn).await
+    }
+
     pub async fn create_user_with_password(
         &self,
         name: &str,

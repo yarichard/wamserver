@@ -96,6 +96,11 @@ function MainApp() {
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
 
+  const updateUser = async (id, name) => {
+    await axios.put(`/api/user/${id}`, { name });
+    setUsers(users.map(u => u.id === id ? { ...u, name } : u));
+  };
+
   return (
     <WebSocketProvider>
       <Box sx={{ flexGrow: 1 }}>
@@ -104,7 +109,7 @@ function MainApp() {
           <Box sx={{ mt: 4 }}>
             <Box sx={{ mt: 4 }}>
               <Routes>
-                <Route path="users" element={<Users users={users} />} />
+                <Route path="users" element={<Users users={users} onUpdateUser={updateUser} />} />
                 <Route path="messages" element={<Messages messages={messages} />} />
                 <Route path="vehicles" element={<Vehicles />} />
               </Routes>
