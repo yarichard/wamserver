@@ -105,7 +105,8 @@ async fn main() {
         .nest("/api", api_router)
         .merge(spa_routes)
         .layer(cors)
-        .fallback_service(static_service);
+        .fallback_service(static_service)
+        .with_state(state.clone());
 
     let cloned_state: WamServerState = state.clone();
     let _ = tokio::spawn(async move {

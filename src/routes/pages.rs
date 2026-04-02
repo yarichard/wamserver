@@ -3,6 +3,7 @@ use axum::{
     response::Json
 };
 use serde_json::{json};
+use crate::auth::middleware::RequireAuth;
 
 pub async fn handler() -> Html<&'static str> {
     Html("<h1>Hello, World!</h1>")
@@ -11,7 +12,7 @@ pub async fn handler() -> Html<&'static str> {
 use axum::http::{HeaderMap, HeaderValue};
 use axum::response::IntoResponse;
 
-pub async fn about() -> impl IntoResponse {
+pub async fn about(RequireAuth(_claims): RequireAuth) -> impl IntoResponse {
     let mut headers = HeaderMap::new();
     headers.insert("content-type", HeaderValue::from_static("application/json"));
     
