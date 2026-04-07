@@ -101,6 +101,12 @@ function MainApp() {
     setUsers(users.map(u => u.id === id ? { ...u, name } : u));
   };
 
+  const createUser = async (name, email) => {
+    const res = await axios.post('/api/user', { name, email });
+    setUsers(prev => [...prev, { id: res.data.id, name, email }]);
+    return res.data.password;
+  };
+
   return (
     <WebSocketProvider>
       <Box sx={{ flexGrow: 1 }}>
@@ -109,7 +115,7 @@ function MainApp() {
           <Box sx={{ mt: 4 }}>
             <Box sx={{ mt: 4 }}>
               <Routes>
-                <Route path="users" element={<Users users={users} onUpdateUser={updateUser} />} />
+                <Route path="users" element={<Users users={users} onUpdateUser={updateUser} onCreateUser={createUser} />} />
                 <Route path="messages" element={<Messages messages={messages} />} />
                 <Route path="vehicles" element={<Vehicles />} />
               </Routes>
