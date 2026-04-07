@@ -107,6 +107,15 @@ function MainApp() {
     return res.data.password;
   };
 
+  const deleteUser = async (id) => {
+    await axios.delete(`/api/user/${id}`);
+    setUsers(prev => prev.filter(u => u.id !== id));
+  };
+
+  const changeUserPassword = async (id, currentPassword, newPassword) => {
+    await axios.patch(`/api/user/${id}/password`, { current_password: currentPassword, new_password: newPassword });
+  };
+
   return (
     <WebSocketProvider>
       <Box sx={{ flexGrow: 1 }}>
@@ -115,7 +124,7 @@ function MainApp() {
           <Box sx={{ mt: 4 }}>
             <Box sx={{ mt: 4 }}>
               <Routes>
-                <Route path="users" element={<Users users={users} onUpdateUser={updateUser} onCreateUser={createUser} />} />
+                <Route path="users" element={<Users users={users} onUpdateUser={updateUser} onCreateUser={createUser} onDeleteUser={deleteUser} onChangePassword={changeUserPassword} />} />
                 <Route path="messages" element={<Messages messages={messages} />} />
                 <Route path="vehicles" element={<Vehicles />} />
               </Routes>
