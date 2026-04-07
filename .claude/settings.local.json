@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__github__get_me",
+      "mcp__atlassian__getJiraIssue",
+      "Bash(ls:*)",
+      "Bash(npm test:*)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(rm -rf node_modules)",
+      "Bash(npm cache:*)",
+      "Bash(NPM_TOKEN=\"\" npm ci)",
+      "mcp__atlassian__getAccessibleAtlassianResources"
+    ]
+  }
+}
