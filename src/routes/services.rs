@@ -1,8 +1,9 @@
 use axum::http::StatusCode;
 use axum::{Json};
 use axum_macros::debug_handler;
-use axum::extract::{State, Path};
+use axum::extract::{State, Path, Query};
 use crate::auth::middleware::RequireAuth;
+use crate::auth::password::hash_password;
 use crate::messaging::websocket::{broadcast_message};
 use crate::{WamServerState};
 use log::{info, error};
@@ -55,22 +56,60 @@ pub async fn create_message(state: State<WamServerState>, RequireAuth(_claims): 
 
 }
 
+#[derive(Debug, Deserialize)]
+pub struct CreateUserRequest {
+    name: String,
+    email: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CreateUserResponse {
+    id: i32,
+    password: String,
+}
+
 #[debug_handler]
-pub async fn create_user(state: State<WamServerState>, RequireAuth(_claims): RequireAuth, Json(user): Json<entity::user::Model>) -> Result<StatusCode, StatusCode>{
-    let mut result = "Message created successfully".to_string();
-    let res = state.db.create_user(user).await;
-    
-    match res {
-        Ok(_) => {
-            info!("{result}");
-            Ok(StatusCode::OK)
-        }
-        Err(e) => {
-            result = format!("Error creating user: {}", e);
-            error!("{result}");
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
-    }
+pub async fn create_user(
+    state: State<WamServerState>,
+    RequireAuth(_claims): RequireAuth,
+    Json(req): Json<CreateUserRequest>,
+) -> Result<(StatusCode, Json<CreateUserResponse>), StatusCode> {
+    // Generate a random default password from a UUID
+    let raw = uuid::Uuid::new_v4().to_string().replace('-', "");
+    let password = raw[..12].to_string();
+
+    let hash = hash_password(&password).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let user = state
+        .db
+        .create_user_with_password(&req.name, &req.email, &hash)
+        .await
+        .map_err(|e| {
+            error!("Error creating user: {}", e);
+            StatusCode::CONFLICT
+        })?;
+
+    info!("User {} created successfully", user.id);
+    Ok((StatusCode::CREATED, Json(CreateUserResponse { id: user.id, password })))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EmailCheckQuery {
+    email: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EmailCheckResponse {
+    exists: bool,
+}
+
+pub async fn check_email(
+    state: State<WamServerState>,
+    RequireAuth(_claims): RequireAuth,
+    Query(params): Query<EmailCheckQuery>,
+) -> Json<EmailCheckResponse> {
+    let exists = state.db.get_user_by_email(&params.email).await.is_ok();
+    Json(EmailCheckResponse { exists })
 }
 
 pub async fn get_messages(state: State<WamServerState>, RequireAuth(_claims): RequireAuth) -> Json<Vec<entity::message::Model>> {
