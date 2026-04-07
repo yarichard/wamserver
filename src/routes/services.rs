@@ -148,3 +148,58 @@ pub async fn update_user(
         }
     }
 }
+
+#[debug_handler]
+pub async fn delete_user(
+    state: State<WamServerState>,
+    RequireAuth(_claims): RequireAuth,
+    Path(id): Path<i32>,
+) -> Result<StatusCode, StatusCode> {
+    match state.db.delete_user(id).await {
+        Ok(_) => {
+            info!("User {} deleted successfully", id);
+            Ok(StatusCode::NO_CONTENT)
+        }
+        Err(e) => {
+            error!("Error deleting user {}: {}", id, e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ChangePasswordRequest {
+    current_password: String,
+    new_password: String,
+}
+
+#[debug_handler]
+pub async fn change_user_password(
+    state: State<WamServerState>,
+    RequireAuth(_claims): RequireAuth,
+    Path(id): Path<i32>,
+    Json(body): Json<ChangePasswordRequest>,
+) -> Result<StatusCode, StatusCode> {
+    use crate::auth::password::{verify_password, hash_password};
+
+    let user = state.db.get_user(id).await.map_err(|_| StatusCode::NOT_FOUND)?;
+
+    if !verify_password(&body.current_password, &user.password_hash)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    let new_hash = hash_password(&body.new_password).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    match state.db.update_user_password(id, &new_hash).await {
+        Ok(_) => {
+            info!("Password updated for user {}", id);
+            Ok(StatusCode::OK)
+        }
+        Err(e) => {
+            error!("Error updating password for user {}: {}", id, e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}

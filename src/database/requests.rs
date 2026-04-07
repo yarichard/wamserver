@@ -83,4 +83,19 @@ impl WamDatabase {
         .insert(&self.conn)
         .await
     }
+
+    pub async fn delete_user(&self, id: i32) -> Result<(), DbErr> {
+        let user = self.get_user(id).await?;
+        let active_user: user::ActiveModel = user.into();
+        active_user.delete(&self.conn).await?;
+        Ok(())
+    }
+
+    pub async fn update_user_password(&self, id: i32, password_hash: &str) -> Result<(), DbErr> {
+        let user = self.get_user(id).await?;
+        let mut active_user: user::ActiveModel = user.into();
+        active_user.password_hash = Set(password_hash.to_string());
+        active_user.update(&self.conn).await?;
+        Ok(())
+    }
 }
