@@ -176,18 +176,22 @@ pub struct ChangePasswordRequest {
 #[debug_handler]
 pub async fn change_user_password(
     state: State<WamServerState>,
-    RequireAuth(_claims): RequireAuth,
+    RequireAuth(claims): RequireAuth,
     Path(id): Path<i32>,
     Json(body): Json<ChangePasswordRequest>,
 ) -> Result<StatusCode, StatusCode> {
     use crate::auth::password::{verify_password, hash_password};
 
+    if claims.sub != id {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
     let user = state.db.get_user(id).await.map_err(|_| StatusCode::NOT_FOUND)?;
 
-    if !verify_password(&body.current_password, &user.password_hash)
+    if user.password_hash.is_empty() || !verify_password(&body.current_password, &user.password_hash)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     {
-        return Err(StatusCode::UNAUTHORIZED);
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
 
     let new_hash = hash_password(&body.new_password).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;

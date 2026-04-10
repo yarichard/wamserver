@@ -88,7 +88,8 @@ async fn main() {
 
     // Handle SPA routes
     let spa_routes = Router::new()
-        .route("/front/{*page}", get(serve_index));
+        .route("/front/{*page}", get(serve_index))
+        .route("/login", get(serve_index));
 
     // Serve static files
     let static_service = ServeDir::new("static")

@@ -69,6 +69,7 @@ function Navigation() {
 }
 
 function MainApp() {
+  const { currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -124,7 +125,7 @@ function MainApp() {
           <Box sx={{ mt: 4 }}>
             <Box sx={{ mt: 4 }}>
               <Routes>
-                <Route path="users" element={<Users users={users} onUpdateUser={updateUser} onCreateUser={createUser} onDeleteUser={deleteUser} onChangePassword={changeUserPassword} />} />
+                <Route path="users" element={<Users users={users} onUpdateUser={updateUser} onCreateUser={createUser} onDeleteUser={deleteUser} onChangePassword={changeUserPassword} currentUserId={currentUser?.sub} />} />
                 <Route path="messages" element={<Messages messages={messages} />} />
                 <Route path="vehicles" element={<Vehicles />} />
               </Routes>
