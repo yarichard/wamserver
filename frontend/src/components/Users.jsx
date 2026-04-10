@@ -12,7 +12,7 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import axios from 'axios';
 
-function Users({ users, onUpdateUser, onCreateUser, onDeleteUser, onChangePassword }) {
+function Users({ users, onUpdateUser, onCreateUser, onDeleteUser, onChangePassword, currentUserId }) {
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState('');
 
@@ -150,7 +150,7 @@ function Users({ users, onUpdateUser, onCreateUser, onDeleteUser, onChangePasswo
   };
 
   const handleSavePassword = async () => {
-    if (!currentPassword || !newPassword) {
+    if (!currentPassword || !newPassword || !confirmPassword) {
       setPwError('All fields are required.');
       return;
     }
@@ -168,8 +168,10 @@ function Users({ users, onUpdateUser, onCreateUser, onDeleteUser, onChangePasswo
       await onChangePassword(pwUserId, currentPassword, newPassword);
       handleClosePwDialog();
     } catch (err) {
-      if (err.response?.status === 401) {
+      if (err.response?.status === 422) {
         setPwError('Current password is incorrect.');
+      } else if (err.response?.status === 403) {
+        setPwError('You can only change your own password.');
       } else {
         setPwError('Failed to change password.');
       }
@@ -212,9 +214,11 @@ function Users({ users, onUpdateUser, onCreateUser, onDeleteUser, onChangePasswo
                   <IconButton onClick={() => handleEdit(user)} size="small" aria-label="edit">
                     <EditIcon />
                   </IconButton>
-                  <IconButton onClick={() => handleOpenPwDialog(user.id)} size="small" aria-label="change password">
-                    <LockIcon />
-                  </IconButton>
+                  {currentUserId === user.id && (
+                    <IconButton onClick={() => handleOpenPwDialog(user.id)} size="small" aria-label="change password">
+                      <LockIcon />
+                    </IconButton>
+                  )}
                   <IconButton onClick={() => handleOpenDeleteDialog(user)} size="small" aria-label="delete" color="error">
                     <DeleteIcon />
                   </IconButton>
